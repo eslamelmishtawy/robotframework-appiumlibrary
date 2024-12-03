@@ -2,6 +2,7 @@ from pymongo import MongoClient, errors
 from datetime import datetime
 import logging
 
+
 class SelfHealing:
     """ A utility class for self-healing locators in Robot framework AppiumLibrary.
 
@@ -15,6 +16,7 @@ class SelfHealing:
     This class helps reduce test flakiness due to minor changes in the application's UI 
     or DOM structure.
     """
+
     def __init__(self, host='localhost', port=27017, username='admin', password='adminpassword', auth_Source="admin"):
         try:
             # Create a MongoDB client
@@ -28,13 +30,13 @@ class SelfHealing:
             logging.info("Connected to MongoDB!")
 
         except errors.ServerSelectionTimeoutError as e:
-            logging.error("MongoDB connection timed out:", e)
+            logging.error(f"MongoDB connection timed out: {e}")
         except errors.ConnectionFailure as e:
-            logging.error("Failed to connect to MongoDB:", e)
+            logging.error(f"Failed to connect to MongoDB: {e}")
         except errors.OperationFailure as e:
-            logging.error("Operation failed on MongoDB:", e)
+            logging.error(f"Operation failed on MongoDB: {e}")
         except Exception as e:
-            logging.error("An unexpected error occurred:", e)
+            logging.error(f"An unexpected error occurred: {e}")
 
     def add_locator_to_database(self, elements, locator, locator_variable_name):
         """Adds a found element and its associated metadata to the database.
@@ -61,13 +63,10 @@ class SelfHealing:
             "created-at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "last-time-passed": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
-        try:
+
+        if existing_document:
+            print("Document already exists in the collection.")
+        else:
             result = collection.insert_one(item)
-            logging.info(f"Document inserted successfully with ID: {result.inserted_id}")
-        except errors.DuplicateKeyError as e:
-            logging.error("Duplicate key error: ", e)
-        except errors.ConnectionFailure as e:
-            logging.error("Failed to connect to MongoDB: ", e)
-        except errors.PyMongoError as e:
-            logging.error("An error occurred while inserting the document: ", e)
-    
+            logging.info(
+                f"Document inserted successfully with ID: {result.inserted_id}")
