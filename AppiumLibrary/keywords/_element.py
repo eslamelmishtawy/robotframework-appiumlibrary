@@ -8,6 +8,7 @@ import ast
 from unicodedata import normalize
 from selenium.webdriver.remote.webelement import WebElement
 from datetime import datetime
+import json 
 
 try:
     basestring  # attempt to evaluate basestring
@@ -630,31 +631,34 @@ class _ElementKeywords(KeywordGroup):
             element.set_value(text)
         except Exception as e:
             raise e
-
+    
     def _element_find(self, locator, first_only, required, tag=None):
         application = self._current_application()
         elements = None
+        variable_name = next((name for name, val in self._bi.get_variables().items() if val == locator), None)
         if isstr(locator):
             _locator = locator
             elements = self._element_finder.find(application, _locator, tag)
             if required and len(elements) == 0:
-                # TODO:
-                # Check Locator Package is from same app
-                # Check application didnt crash or other application is running
-                # Extract All Page Source Elements
-                # Get the most match element
-                # Check the threshold between the matched element
-                # Add the element locator to variable file
-                self._info(self)
-                self._info(application.get_source())
                 raise ValueError("Element locator '" + locator + "' did not match any elements.")
             if first_only:
-                if len(elements) == 0: return None
+                if len(elements) == 0: 
+                    self._info("Attemping Healing Locator...")
+                    elements_in_page = self.healing_client.restructure_json(json.loads(self.healing_client.xml_to_json(application.page_source)), keys_to_keep=["package","text", "resource-id", "bounds", "content-desc"])
+                    healing_candidate = self.healing_client.select_locator_from_database(variable_name)
+                    self._info(healing_candidate)
+                    if healing_candidate:
+                        healing_candidate, similarity_score = self.healing_client.find_most_similar(healing_candidate, elements_in_page)
+                        if similarity_score >= 50:
+                            #TODO: new xpath how it will be constructed???
+                            locator = f"//{healing_candidate['tag']}[@resource-id='{healing_candidate['attributes']['resource-id']}']"
+                            self._info(locator)
+                            return self._element_finder.find(application, locator, tag)[0]
+                    return None
                 if self.healing_client:    
-                    variable_name = next((name for name, val in self._bi.get_variables().items() if val == locator), None)    
                     self.healing_client.add_locator_to_database(elements, locator, variable_name)
                 else:
-                        raise ValueError("Database not connected")
+                    raise ValueError("Database not connected")
                 return elements[0]
         elif isinstance(locator, WebElement):
             if first_only:

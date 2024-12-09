@@ -80,6 +80,7 @@ class AppiumLibrary(
     ROBOT_LIBRARY_VERSION = VERSION
 
     def __init__(self, timeout=5, run_on_failure='Capture Page Screenshot', sleep_between_wait_loop=0.2, self_healing=True):
+        #TODO: selfhealing = false by default
         """AppiumLibrary can be imported with optional arguments.
 
         ``timeout`` is the default timeout used to wait for all waiting actions.
