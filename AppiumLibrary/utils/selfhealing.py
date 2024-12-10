@@ -4,6 +4,7 @@ import logging
 import json
 import xml.etree.ElementTree as ET
 
+
 class SelfHealing:
     """ A utility class for self-healing locators in Robot framework AppiumLibrary.
 
@@ -17,6 +18,7 @@ class SelfHealing:
     This class helps reduce test flakiness due to minor changes in the application's UI 
     or DOM structure.
     """
+
     def __init__(self, host='localhost', port=27017, username='admin', password='adminpassword', auth_Source="admin"):
         try:
             # Create a MongoDB client
@@ -36,7 +38,7 @@ class SelfHealing:
         except errors.OperationFailure as e:
             logging.error("Operation failed on MongoDB:", e)
         except Exception as e:
-            logging.error("An unexpected error occurred:", e)
+            logging.error("An unexpected error occurred while connecting to MongoDB", e)
 
     def add_locator_to_database(self, elements, locator, locator_variable_name):
         """Adds a found element and its associated metadata to the database.
@@ -57,33 +59,32 @@ class SelfHealing:
             "locator": locator,
             "tag": elements[0].get_attribute("classname"),
             "attributes": {
-            "text": elements[0].text,
-            "package": elements[0].get_attribute("package"),
-            "resource-id": elements[0].get_attribute("resource-id"),
-            "bounds": f"{elements[0].location}, {elements[0].size}",
-            "content-desc": elements[0].get_attribute("content-desc")
+                "text": elements[0].text,
+                "package": elements[0].get_attribute("package"),
+                "resource-id": elements[0].get_attribute("resource-id"),
+                "bounds": f"{elements[0].location}, {elements[0].size}",
+                "content-desc": elements[0].get_attribute("content-desc")
             },
             "created-at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "last-time-passed": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
-        existing_document = collection.find_one({"name": locator_variable_name, 
-                                                     "locator": locator})
+        existing_document = collection.find_one({"name": locator_variable_name,
+                                                 "locator": locator})
         if existing_document:
             print("Document already exists in the collection.")
         else:
             result = collection.insert_one(item)
             logging.info(f"Document inserted successfully with ID: {result.inserted_id}")
-            
+
     def select_locator_from_database(self, locator_variable_name):
         db = self.client["ROBOT_ELEMENTS"]
         collection = db["elements"]
         existing_document = collection.find_one({"name": locator_variable_name})
         if existing_document:
-            return {'tag': existing_document['tag'], 'attributes':existing_document['attributes']}
+            return {'tag': existing_document['tag'], 'attributes': existing_document['attributes']}
         else:
             logging.info("Couldn't find any related elements")
             return None
-        
 
     def parse_element(self, element):
         """Recursively parse XML elements into dictionary objects with nested children."""
@@ -105,12 +106,13 @@ class SelfHealing:
         root = ET.fromstring(xml_string)
         parsed_data = self.parse_element(root)
         return json.dumps(parsed_data, indent=4)
-    
+
     def restructure_json(self, data, keys_to_keep=None):
         """Restructure JSON to ensure the tag and attributes are at the top level."""
         result = []
         if keys_to_keep is None:
             keys_to_keep = []
+
         def process_element(element):
             if isinstance(element, dict):
                 if "tag" in element:
@@ -130,8 +132,7 @@ class SelfHealing:
 
         process_element(data)
         return result
-    
-    
+
     def find_most_similar(self, obj1, obj_list):
         """
         Find the most similar object from a list based on the given object and calculate its similarity percentage.
@@ -143,15 +144,16 @@ class SelfHealing:
         Returns:
             dict, float: The most similar object and its similarity percentage.
         """
+
         def calculate_similarity(obj1, obj2):
             # Weight distribution
             weights = {
                 "tag": 20,  # 20% for tag similarity
                 "attributes": {
-                    "text": 15,          # 15% for text attribute
-                    "resource-id": 25,   # 25% for resource ID attribute
-                    "bounds": 20,        # 20% for bounds attribute
-                    "content-desc": 20   # 20% for content description attribute
+                    "text": 15,  # 15% for text attribute
+                    "resource-id": 25,  # 25% for resource ID attribute
+                    "bounds": 20,  # 20% for bounds attribute
+                    "content-desc": 20  # 20% for content description attribute
                 }
             }
 
