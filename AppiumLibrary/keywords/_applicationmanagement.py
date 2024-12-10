@@ -7,6 +7,8 @@ from appium import webdriver
 from appium.options.common import AppiumOptions
 from AppiumLibrary.utils import ApplicationCache
 from .keywordgroup import KeywordGroup
+from AppiumLibrary.utils.selfhealing import SelfHealing
+from AppiumLibrary import AppiumLibrary
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -170,6 +172,18 @@ class _ApplicationManagementKeywords(KeywordGroup):
         old_timeout = self.get_appium_timeout()
         self._timeout_in_secs = robot.utils.timestr_to_secs(seconds)
         return old_timeout
+
+    def set_appium_self_healing(self, self_healing):
+        """Toggle for Appium self-healing feature used by various keywords.
+
+        There are several keywords that take self_healing as an
+        argument. All of these self_healing arguments are optional. The self_healing
+        used by all of them can be enabled using this method. Supported Keywords can separately disable self-healing
+        using same argument name
+        """
+        AppiumLibrary.healing_client = None
+        if self_healing == 'enabled':
+            AppiumLibrary.healing_client = SelfHealing()
 
     def get_appium_sessionId(self):
         """Returns the current session ID as a reference"""
