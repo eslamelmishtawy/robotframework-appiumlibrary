@@ -86,39 +86,39 @@ class _TouchKeywords(KeywordGroup):
         else:
             self.swipe(x_start, y_start, x_offset, y_offset, duration)
 
-    def scroll(self, start_locator, end_locator):
+    def scroll(self, start_locator, end_locator, self_healing=True):
         """
         Scrolls from one element to another
         Key attributes for arbitrary elements are `id` and `name`. See
         `introduction` for details about locating elements.
         """
-        el1 = self._element_find(start_locator, True, True)
-        el2 = self._element_find(end_locator, True, True)
+        el1 = self._element_find(start_locator, True, True, self_healing=self_healing)
+        el2 = self._element_find(end_locator, True, True, self_healing=self_healing)
         driver = self._current_application()
         driver.scroll(el1, el2)
 
-    def scroll_down(self, locator):
+    def scroll_down(self, locator, self_healing=True):
         """Scrolls down to element"""
         driver = self._current_application()
-        element = self._element_find(locator, True, True)
+        element = self._element_find(locator, True, True, self_healing=self_healing)
         driver.execute_script("mobile: scroll", {"direction": 'down', 'elementid': element.id})
 
-    def scroll_up(self, locator):
+    def scroll_up(self, locator, self_healing=True):
         """Scrolls up to element"""
         driver = self._current_application()
-        element = self._element_find(locator, True, True)
+        element = self._element_find(locator, True, True, self_healing=self_healing)
         driver.execute_script("mobile: scroll", {"direction": 'up', 'elementid': element.id})
 
-    def long_press(self, locator, duration=1000):
+    def long_press(self, locator, duration=1000, self_healing=True):
         """*DEPRECATED!!* Since selenium v4, use other keywords.
 
         Long press the element with optional duration """
         driver = self._current_application()
-        element = self._element_find(locator, True, True)
+        element = self._element_find(locator, True, True, self_healing=self_healing)
         action = TouchAction(driver)
         action.press(element).wait(duration).release().perform()
 
-    def tap(self, locator, x_offset=None, y_offset=None, count=1):
+    def tap(self, locator, x_offset=None, y_offset=None, count=1, self_healing=True):
         """*DEPRECATED!!* Since selenium v4, use `Tap With Positions` keyword.
 
         Tap element identified by ``locator``.
@@ -130,7 +130,7 @@ class _TouchKeywords(KeywordGroup):
         - ``count`` - can be used for multiple times of tap on that element
         """
         driver = self._current_application()
-        el = self._element_find(locator, True, True)
+        el = self._element_find(locator, True, True, self_healing=self_healing)
         action = TouchAction(driver)
         action.tap(el,x_offset,y_offset, count).perform()
 
@@ -155,7 +155,7 @@ class _TouchKeywords(KeywordGroup):
         driver = self._current_application()
         driver.tap(positions=list(locations), duration=duration)
         
-    def tap_with_number_of_taps(self, locator, number_of_taps, number_of_touches):
+    def tap_with_number_of_taps(self, locator, number_of_taps, number_of_touches, self_healing=True):
         """ Sends one or more taps with one or more touch points.iOS only.
         
         Args:
@@ -163,7 +163,7 @@ class _TouchKeywords(KeywordGroup):
         - ``number_of_touches`` - The number of touch points.
         """
         driver = self._current_application()
-        element = self._element_find(locator, True, True)
+        element = self._element_find(locator, True, True, self_healing=self_healing)
         params = {'element': element, 'numberOfTaps': number_of_taps, 'numberOfTouches': number_of_touches}
         driver.execute_script("mobile: tapWithNumberOfTaps", params)
 
@@ -203,7 +203,7 @@ class _TouchKeywords(KeywordGroup):
         action = TouchAction(driver)
         action.press(x=coordinate_X, y=coordinate_Y).release().perform()
 
-    def drag_and_drop(self, locator: str, target: str):
+    def drag_and_drop(self, locator: str, target: str, self_healing=True):
         """Drags the element identified by ``locator`` into the ``target`` element.
 
         The ``locator`` argument is the locator of the dragged element
@@ -217,8 +217,8 @@ class _TouchKeywords(KeywordGroup):
         Usage:
         | `Drag And Drop` | id=div#element | id=div.target |
         """
-        element = self._element_find(locator, True, True)
-        target = self._element_find(target, True, True)
+        element = self._element_find(locator, True, True, self_healing=self_healing)
+        target = self._element_find(target, True, True, self_healing=self_healing)
         driver = self._current_application()
         driver.drag_and_drop(element, target)
 
