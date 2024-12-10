@@ -3,10 +3,12 @@
 from os.path import abspath, dirname, join
 from setuptools import setup, find_packages
 
+from AppiumLibrary import VERSION
+
 ROOT = dirname(abspath(__file__))
 
 version_file = join(ROOT, 'AppiumLibrary', 'version.py')
-exec (compile(open(version_file).read(), version_file, 'exec'))
+exec(compile(open(version_file).read(), version_file, 'exec'))
 
 setup(name='robotframework-appiumlibrary',
       version=VERSION,
