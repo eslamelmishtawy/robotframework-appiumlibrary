@@ -79,8 +79,9 @@ class AppiumLibrary(
     ROBOT_LIBRARY_SCOPE = 'GLOBAL'
     ROBOT_LIBRARY_VERSION = VERSION
 
-    def __init__(self, timeout=5, run_on_failure='Capture Page Screenshot', sleep_between_wait_loop=0.2, self_healing=True):
-        #TODO: selfhealing = false by default
+    def __init__(self, timeout=5, run_on_failure='Capture Page Screenshot', sleep_between_wait_loop=0.2,
+                 self_healing='disabled'):
+
         """AppiumLibrary can be imported with optional arguments.
 
         ``timeout`` is the default timeout used to wait for all waiting actions.
@@ -100,13 +101,13 @@ class AppiumLibrary(
         | Library | AppiumLibrary | 10 | # Sets default timeout to 10 seconds                                                                             |
         | Library | AppiumLibrary | timeout=10 | run_on_failure=No Operation | # Sets default timeout to 10 seconds and does nothing on failure           |
         | Library | AppiumLibrary | timeout=10 | sleep_between_wait_loop=0.3 | # Sets default timeout to 10 seconds and sleep 300 ms between wait loop    |
+        | Library | AppiumLibrary | timeout=10 | self_healing=enabled | #  Enable Self-healing for AppiumLibrary supported keywords    |
+        | Library | AppiumLibrary | timeout=10 | self_healing=disabled | # Disable Self-healing for AppiumLibrary supported keywords    |
         """
         for base in AppiumLibrary.__bases__:
             base.__init__(self)
         self.set_appium_timeout(timeout)
         self.register_keyword_to_run_on_failure(run_on_failure)
         self.set_sleep_between_wait_loop(sleep_between_wait_loop)
-        self.self_healing= self_healing
-        
-        if self.self_healing:
-            self.healing_client = SelfHealing()
+        self.set_appium_self_healing(self_healing)
+
