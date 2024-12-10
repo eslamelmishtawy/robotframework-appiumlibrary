@@ -1,14 +1,20 @@
 import time
 import robot
 from .keywordgroup import KeywordGroup
+from .. import SelfHealing
+
+
+# def _get_appium_library_self_healing():
+#     appium_instances = [obj.self_healing for obj in gc.get_objects() if isinstance(obj, AppiumLibrary.AppiumLibrary)]
+#     return appium_instances[len(appium_instances) - 1]
 
 
 class _WaitingKeywords(KeywordGroup):
-    
+
     def __init__(self):
         self._sleep_between_wait = 0.2
-        
-    def wait_until_element_is_visible(self, locator, timeout=None, error=None):
+
+    def wait_until_element_is_visible(self, locator, timeout=None, error=None, self_healing=True):
         """Waits until element specified with `locator` is visible.
 
         Fails if `timeout` expires before the element is visible. See
@@ -21,14 +27,17 @@ class _WaitingKeywords(KeywordGroup):
         Element`, `Wait For Condition` and BuiltIn keyword `Wait Until Keyword
         Succeeds`.
         """
+
         def check_visibility():
-            visible = self._is_visible(locator)
+            visible = self._is_visible(locator, self_healing)
             if visible:
                 return
             elif visible is None:
-                return error or "Element locator '%s' did not match any elements after %s" % (locator, self._format_timeout(timeout))
+                return error or "Element locator '%s' did not match any elements after %s" % (
+                locator, self._format_timeout(timeout))
             else:
                 return error or "Element '%s' was not visible in %s" % (locator, self._format_timeout(timeout))
+
         self._wait_until_no_error(timeout, check_visibility)
 
     def wait_until_page_contains(self, text, timeout=None, error=None):
@@ -73,7 +82,7 @@ class _WaitingKeywords(KeywordGroup):
 
         self._wait_until_no_error(timeout, check_present)
 
-    def wait_until_page_contains_element(self, locator, timeout=None, error=None):
+    def wait_until_page_contains_element(self, locator, timeout=None, error=None, self_healing=True):
         """Waits until element specified with `locator` appears on current page.
 
         Fails if `timeout` expires before the element appears. See
@@ -89,7 +98,7 @@ class _WaitingKeywords(KeywordGroup):
         """
         if not error:
             error = "Element '%s' did not appear in <TIMEOUT>" % locator
-        self._wait_until(timeout, error, self._is_element_present, locator)
+        self._wait_until(timeout, error, self._is_element_present, locator, self_healing)
 
     def wait_until_page_does_not_contain_element(self, locator, timeout=None, error=None):
         """Waits until element specified with `locator` disappears from current page.
@@ -125,12 +134,12 @@ class _WaitingKeywords(KeywordGroup):
         old_sleep = self._sleep_between_wait
         self._sleep_between_wait = robot.utils.timestr_to_secs(seconds)
         return old_sleep
-    
+
     def get_sleep_between_wait_loop(self):
         """Gets the sleep between wait loop in seconds that is used by wait until keywords.
         """
         return robot.utils.secs_to_timestr(self._sleep_between_wait)
-    
+
     # Private
 
     def _wait_until(self, timeout, error, function, *args):
