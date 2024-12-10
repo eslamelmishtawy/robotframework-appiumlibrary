@@ -8,7 +8,7 @@ import ast
 from unicodedata import normalize
 from selenium.webdriver.remote.webelement import WebElement
 from datetime import datetime
-import json 
+import json
 
 try:
     basestring  # attempt to evaluate basestring
@@ -25,23 +25,24 @@ class _ElementKeywords(KeywordGroup):
     def __init__(self):
         self._element_finder = ElementFinder()
         self._bi = BuiltIn()
+
     # Public, element lookups
-    def clear_text(self, locator):
+    def clear_text(self, locator, self_healing=True):
         """Clears the text field identified by `locator`.
 
         See `introduction` for details about locating elements.
         """
         self._info("Clear text field '%s'" % locator)
-        self._element_clear_text_by_locator(locator)
+        self._element_clear_text_by_locator(locator, self_healing=self_healing)
 
-    def click_element(self, locator):
+    def click_element(self, locator, self_healing=True):
         """Click element identified by `locator`.
 
         Key attributes for arbitrary elements are `index` and `name`. See
         `introduction` for details about locating elements.
         """
         self._info("Clicking element '%s'." % locator)
-        self._element_find(locator, True, True).click()
+        self._element_find(locator, True, True, self_healing=self_healing).click()
 
     def click_button(self, index_or_name):
         """*DEPRECATED!!* in selenium v4, use `Click Element` keyword.
@@ -64,7 +65,7 @@ class _ElementKeywords(KeywordGroup):
         use `locator` with `Get Web Elements` instead.
 
         """
-        self._element_find_by_text(text,exact_match).click()
+        self._element_find_by_text(text, exact_match).click()
 
     def input_text_into_current_element(self, text):
         """Types the given `text` into currently selected text field.
@@ -76,15 +77,15 @@ class _ElementKeywords(KeywordGroup):
         driver.set_clipboard_text(text)
         driver.press_keycode(50, 0x1000 | 0x2000)
 
-    def input_text(self, locator, text):
+    def input_text(self, locator, text, self_healing=True):
         """Types the given `text` into text field identified by `locator`.
 
         See `introduction` for details about locating elements.
         """
         self._info("Typing text '%s' into text field '%s'" % (text, locator))
-        self._element_input_text_by_locator(locator, text)
+        self._element_input_text_by_locator(locator, text, self_healing=self_healing)
 
-    def input_password(self, locator, text):
+    def input_password(self, locator, text, self_healing=True):
         """Types the given password into text field identified by `locator`.
 
         Difference between this keyword and `Input Text` is that this keyword
@@ -92,15 +93,15 @@ class _ElementKeywords(KeywordGroup):
         locating elements.
         """
         self._info("Typing password into text field '%s'" % locator)
-        self._element_input_text_by_locator(locator, text)
+        self._element_input_text_by_locator(locator, text, self_healing=self_healing)
 
-    def input_value(self, locator, text):
+    def input_value(self, locator, text, self_healing=True):
         """Sets the given value into text field identified by `locator`. This is an IOS only keyword, input value makes use of set_value
 
         See `introduction` for details about locating elements.
         """
         self._info("Setting text '%s' into text field '%s'" % (text, locator))
-        self._element_input_value_by_locator(locator, text)
+        self._element_input_value_by_locator(locator, text, self_healing=self_healing)
 
     def hide_keyboard(self, key_name=None):
         """Hides the software keyboard on the device. (optional) In iOS, use `key_name` to press
@@ -141,14 +142,14 @@ class _ElementKeywords(KeywordGroup):
             raise AssertionError("Page should not have contained text '%s'" % text)
         self._info("Current page does not contains text '%s'." % text)
 
-    def page_should_contain_element(self, locator, loglevel='INFO'):
+    def page_should_contain_element(self, locator, loglevel='INFO', self_healing=True):
         """Verifies that current page contains `locator` element.
 
         If this keyword fails, it automatically logs the page source
         using the log level specified with the optional `loglevel` argument.
         Giving `NONE` as level disables logging.
         """
-        if not self._is_element_present(locator):
+        if not self._is_element_present(locator, self_healing=self_healing):
             self.log_source(loglevel)
             raise AssertionError("Page should have contained element '%s' "
                                  "but did not" % locator)
@@ -166,31 +167,31 @@ class _ElementKeywords(KeywordGroup):
             raise AssertionError("Page should not have contained element '%s'" % locator)
         self._info("Current page not contains element '%s'." % locator)
 
-    def element_should_be_disabled(self, locator, loglevel='INFO'):
+    def element_should_be_disabled(self, locator, loglevel='INFO', self_healing=True):
         """Verifies that element identified with locator is disabled.
 
         Key attributes for arbitrary elements are `id` and `name`. See
         `introduction` for details about locating elements.
         """
-        if self._element_find(locator, True, True).is_enabled():
+        if self._element_find(locator, True, True, self_healing=self_healing).is_enabled():
             self.log_source(loglevel)
             raise AssertionError("Element '%s' should be disabled "
                                  "but did not" % locator)
         self._info("Element '%s' is disabled ." % locator)
 
-    def element_should_be_enabled(self, locator, loglevel='INFO'):
+    def element_should_be_enabled(self, locator, loglevel='INFO', self_healing=True):
         """Verifies that element identified with locator is enabled.
 
         Key attributes for arbitrary elements are `id` and `name`. See
         `introduction` for details about locating elements.
         """
-        if not self._element_find(locator, True, True).is_enabled():
+        if not self._element_find(locator, True, True, self_healing=self_healing).is_enabled():
             self.log_source(loglevel)
             raise AssertionError("Element '%s' should be enabled "
                                  "but did not" % locator)
         self._info("Element '%s' is enabled ." % locator)
 
-    def element_should_be_visible(self, locator, loglevel='INFO'):
+    def element_should_be_visible(self, locator, loglevel='INFO', self_healing=True):
         """Verifies that element identified with locator is visible.
 
         Key attributes for arbitrary elements are `id` and `name`. See
@@ -198,26 +199,26 @@ class _ElementKeywords(KeywordGroup):
 
         New in AppiumLibrary 1.4.5
         """
-        if not self._element_find(locator, True, True).is_displayed():
+        if not self._element_find(locator, True, True, self_healing=self_healing).is_displayed():
             self.log_source(loglevel)
             raise AssertionError("Element '%s' should be visible "
                                  "but did not" % locator)
 
-    def element_name_should_be(self, locator, expected):
-        element = self._element_find(locator, True, True)
+    def element_name_should_be(self, locator, expected, self_healing=True):
+        element = self._element_find(locator, True, True, self_healing=self_healing)
         if str(expected) != str(element.get_attribute('name')):
             raise AssertionError("Element '%s' name should be '%s' "
                                  "but it is '%s'." % (locator, expected, element.get_attribute('name')))
         self._info("Element '%s' name is '%s' " % (locator, expected))
 
-    def element_value_should_be(self, locator, expected):
-        element = self._element_find(locator, True, True)
+    def element_value_should_be(self, locator, expected, self_healing=True):
+        element = self._element_find(locator, True, True, self_healing=self_healing)
         if str(expected) != str(element.get_attribute('value')):
             raise AssertionError("Element '%s' value should be '%s' "
                                  "but it is '%s'." % (locator, expected, element.get_attribute('value')))
         self._info("Element '%s' value is '%s' " % (locator, expected))
 
-    def element_attribute_should_match(self, locator, attr_name, match_pattern, regexp=False):
+    def element_attribute_should_match(self, locator, attr_name, match_pattern, regexp=False, self_healing=True):
         """Verify that an attribute of an element matches the expected criteria.
 
         The element is identified by _locator_. See `introduction` for details
@@ -259,7 +260,7 @@ class _ElementKeywords(KeywordGroup):
         | Element Name Should Be         | xpath = //*[contains(@text,'example text')] | txt_field_name |      |
 
         """
-        elements = self._element_find(locator, False, True)
+        elements = self._element_find(locator, False, True, self_healing=self_healing)
         if len(elements) > 1:
             self._info("CAUTION: '%s' matched %s elements - using the first element only" % (locator, len(elements)))
 
@@ -294,7 +295,7 @@ class _ElementKeywords(KeywordGroup):
         #                         "but it was '%s'." % (locator, attr_name, expected, element.get_attribute(attr_name)))
         self._info("Element '%s' attribute '%s' is '%s' " % (locator, attr_name, match_pattern))
 
-    def element_should_contain_text(self, locator, expected, message=''):
+    def element_should_contain_text(self, locator, expected, message='', self_healing=True):
         """Verifies element identified by ``locator`` contains text ``expected``.
 
         If you wish to assert an exact (not a substring) match on the text
@@ -305,15 +306,15 @@ class _ElementKeywords(KeywordGroup):
         New in AppiumLibrary 1.4.
         """
         self._info("Verifying element '%s' contains text '%s'."
-                    % (locator, expected))
-        actual = self._get_text(locator)
+                   % (locator, expected))
+        actual = self._get_text(locator, self_healing=self_healing)
         if not expected in actual:
             if not message:
-                message = "Element '%s' should have contained text '%s' but "\
+                message = "Element '%s' should have contained text '%s' but " \
                           "its text was '%s'." % (locator, expected, actual)
             raise AssertionError(message)
 
-    def element_should_not_contain_text(self, locator, expected, message=''):
+    def element_should_not_contain_text(self, locator, expected, message='', self_healing=True):
         """Verifies element identified by ``locator`` does not contain text ``expected``.
 
         ``message`` can be used to override the default error message.
@@ -321,14 +322,14 @@ class _ElementKeywords(KeywordGroup):
         """
         self._info("Verifying element '%s' does not contain text '%s'."
                    % (locator, expected))
-        actual = self._get_text(locator)
+        actual = self._get_text(locator, self_healing=self_healing)
         if expected in actual:
             if not message:
                 message = "Element '%s' should not contain text '%s' but " \
                           "it did." % (locator, expected)
             raise AssertionError(message)
 
-    def element_text_should_be(self, locator, expected, message=''):
+    def element_text_should_be(self, locator, expected, message='', self_healing=True):
         """Verifies element identified by ``locator`` exactly contains text ``expected``.
 
         In contrast to `Element Should Contain Text`, this keyword does not try
@@ -339,16 +340,16 @@ class _ElementKeywords(KeywordGroup):
         New in AppiumLibrary 1.4.
         """
         self._info("Verifying element '%s' contains exactly text '%s'."
-                    % (locator, expected))
-        element = self._element_find(locator, True, True)
+                   % (locator, expected))
+        element = self._element_find(locator, True, True, self_healing=self_healing)
         actual = element.text
         if expected != actual:
             if not message:
-                message = "The text of element '%s' should have been '%s' but "\
+                message = "The text of element '%s' should have been '%s' but " \
                           "in fact it was '%s'." % (locator, expected, actual)
             raise AssertionError(message)
 
-    def get_webelement(self, locator):
+    def get_webelement(self, locator, self_healing=True):
         """Returns the first [http://selenium-python.readthedocs.io/api.html#module-selenium.webdriver.remote.webelement|WebElement] object matching ``locator``.
 
         Example:
@@ -357,9 +358,9 @@ class _ElementKeywords(KeywordGroup):
 
         New in AppiumLibrary 1.4.
         """
-        return self._element_find(locator, True, True)
+        return self._element_find(locator, True, True, self_healing=self_healing)
 
-    def scroll_element_into_view(self, locator):
+    def scroll_element_into_view(self, locator, self_healing=True):
         """Scrolls an element from given ``locator`` into view.
         Arguments:
         - ``locator``: The locator to find requested element. Key attributes for
@@ -372,13 +373,14 @@ class _ElementKeywords(KeywordGroup):
             element = locator
         else:
             self._info("Scrolling element '%s' into view." % locator)
-            element = self._element_find(locator, True, True)
+            element = self._element_find(locator, True, True, self_healing=self_healing)
         script = 'arguments[0].scrollIntoView()'
         # pylint: disable=no-member
         self._current_application().execute_script(script, element)
         return element
 
     def get_webelement_in_webelement(self, element, locator):
+        # TODO: Refactor for self._element_finder.find to self._element_find
         """ 
         Returns a single [http://selenium-python.readthedocs.io/api.html#module-selenium.webdriver.remote.webelement|WebElement] 
         objects matching ``locator`` that is a child of argument element.
@@ -392,13 +394,13 @@ class _ElementKeywords(KeywordGroup):
             elements = self._element_finder.find(element, _locator, None)
             if len(elements) == 0:
                 raise ValueError("Element locator '" + locator + "' did not match any elements.")
-            if len(elements) == 0: 
+            if len(elements) == 0:
                 return None
             return elements[0]
         elif isinstance(locator, WebElement):
             return locator
 
-    def get_webelements(self, locator):
+    def get_webelements(self, locator, self_healing=True):
         """Returns list of [http://selenium-python.readthedocs.io/api.html#module-selenium.webdriver.remote.webelement|WebElement] objects matching ``locator``.
 
         Example:
@@ -411,9 +413,9 @@ class _ElementKeywords(KeywordGroup):
 
         New in AppiumLibrary 1.4.
         """
-        return self._element_find(locator, False, True)
+        return self._element_find(locator, False, True, self_healing=self_healing)
 
-    def get_element_attribute(self, locator, attribute):
+    def get_element_attribute(self, locator, attribute, self_healing=True):
         """Get element attribute using given attribute: name, value,...
 
         Examples:
@@ -421,7 +423,7 @@ class _ElementKeywords(KeywordGroup):
         | Get Element Attribute | locator | name |
         | Get Element Attribute | locator | value |
         """
-        elements = self._element_find(locator, False, True)
+        elements = self._element_find(locator, False, True, self_healing=self_healing)
         ele_len = len(elements)
         if ele_len == 0:
             raise AssertionError("Element '%s' could not be found" % locator)
@@ -435,40 +437,40 @@ class _ElementKeywords(KeywordGroup):
         except:
             raise AssertionError("Attribute '%s' is not valid for element '%s'" % (attribute, locator))
 
-    def get_element_location(self, locator):
+    def get_element_location(self, locator, self_healing=True):
         """Get element location
 
         Key attributes for arbitrary elements are `id` and `name`. See
         `introduction` for details about locating elements.
         """
-        element = self._element_find(locator, True, True)
+        element = self._element_find(locator, True, True, self_healing=self_healing)
         element_location = element.location
         self._info("Element '%s' location: %s " % (locator, element_location))
         return element_location
 
-    def get_element_size(self, locator):
+    def get_element_size(self, locator, self_healing=True):
         """Get element size
 
         Key attributes for arbitrary elements are `id` and `name`. See
         `introduction` for details about locating elements.
         """
-        element = self._element_find(locator, True, True)
+        element = self._element_find(locator, True, True, self_healing=self_healing)
         element_size = element.size
         self._info("Element '%s' size: %s " % (locator, element_size))
         return element_size
 
-    def get_element_rect(self, locator):
+    def get_element_rect(self, locator, self_healing=True):
         """Gets dimensions and coordinates of an element
 
         Key attributes for arbitrary elements are `id` and `name`. See
         `introduction` for details about locating elements.
         """
-        element = self._element_find(locator, True, True)
+        element = self._element_find(locator, True, True, self_healing=self_healing)
         element_rect = element.rect
         self._info("Element '%s' rect: %s " % (locator, element_rect))
         return element_rect
 
-    def get_text(self, locator, first_only: bool = True):
+    def get_text(self, locator, first_only: bool = True, self_healing=True):
         """Get element text (for hybrid and mobile browser use `xpath` locator, others might cause problem)
 
         first_only parameter allow to get the text from the 1st match (Default) or a list of text from all match.
@@ -479,11 +481,11 @@ class _ElementKeywords(KeywordGroup):
 
         New in AppiumLibrary 1.4.
         """
-        text = self._get_text(locator, first_only)
+        text = self._get_text(locator, first_only, self_healing=self_healing)
         self._info("Element '%s' text is '%s' " % (locator, text))
         return text
 
-    def get_matching_xpath_count(self, xpath):
+    def get_matching_xpath_count(self, xpath, self_healing=True):
         """Returns number of elements matching ``xpath``
 
         One should not use the `xpath=` prefix for 'xpath'. XPath is assumed.
@@ -498,20 +500,20 @@ class _ElementKeywords(KeywordGroup):
 
         New in AppiumLibrary 1.4.
         """
-        count = len(self._element_find("xpath=" + xpath, False, False))
+        count = len(self._element_find("xpath=" + xpath, False, False, self_healing=self_healing))
         return str(count)
 
-    def text_should_be_visible(self, text, exact_match=False, loglevel='INFO'):
+    def text_should_be_visible(self, text, exact_match=False, loglevel='INFO', self_healing=True):
         """Verifies that element identified with text is visible.
 
         New in AppiumLibrary 1.4.5
         """
-        if not self._element_find_by_text(text, exact_match).is_displayed():
+        if not self._element_find_by_text(text, exact_match, self_healing=self_healing).is_displayed():
             self.log_source(loglevel)
             raise AssertionError("Text '%s' should be visible "
                                  "but did not" % text)
 
-    def xpath_should_match_x_times(self, xpath, count, error=None, loglevel='INFO'):
+    def xpath_should_match_x_times(self, xpath, count, error=None, loglevel='INFO', self_healing=True):
         """Verifies that the page contains the given number of elements located by the given ``xpath``.
 
         One should not use the `xpath=` prefix for 'xpath'. XPath is assumed.
@@ -527,11 +529,11 @@ class _ElementKeywords(KeywordGroup):
 
         New in AppiumLibrary 1.4.
         """
-        actual_xpath_count = len(self._element_find("xpath=" + xpath, False, False))
+        actual_xpath_count = len(self._element_find("xpath=" + xpath, False, False, self_healing=self_healing))
         if int(actual_xpath_count) != int(count):
             if not error:
-                error = "Xpath %s should have matched %s times but matched %s times"\
-                            %(xpath, count, actual_xpath_count)
+                error = "Xpath %s should have matched %s times but matched %s times" \
+                        % (xpath, count, actual_xpath_count)
             self.log_source(loglevel)
             raise AssertionError(error)
         self._info("Current page contains %s elements matching '%s'."
@@ -599,16 +601,16 @@ class _ElementKeywords(KeywordGroup):
         except Exception as e:
             raise 'Cannot click the %s element "%s"' % (class_name, index_or_name)
 
-    def _element_clear_text_by_locator(self, locator):
+    def _element_clear_text_by_locator(self, locator, self_healing=True):
         try:
-            element = self._element_find(locator, True, True)
+            element = self._element_find(locator, True, True, self_healing=self_healing)
             element.clear()
         except Exception as e:
             raise e
 
-    def _element_input_text_by_locator(self, locator, text):
+    def _element_input_text_by_locator(self, locator, text, self_healing=True):
         try:
-            element = self._element_find(locator, True, True)
+            element = self._element_find(locator, True, True, self_healing=self_healing)
             element.send_keys(text)
         except Exception as e:
             raise e
@@ -625,14 +627,15 @@ class _ElementKeywords(KeywordGroup):
         except Exception as e:
             raise 'Cannot input text "%s" for the %s element "%s"' % (text, class_name, index_or_name)
 
-    def _element_input_value_by_locator(self, locator, text):
+    def _element_input_value_by_locator(self, locator, text, self_healing=True):
         try:
-            element = self._element_find(locator, True, True)
+            element = self._element_find(locator, True, True, self_healing=self_healing)
             element.set_value(text)
         except Exception as e:
             raise e
-    
-    def _element_find(self, locator, first_only, required, tag=None):
+
+    def _element_find(self, locator, first_only, required, tag=None, self_healing=None):
+        self_healing = True if self.healing_client else self_healing
         application = self._current_application()
         elements = None
         variable_name = next((name for name, val in self._bi.get_variables().items() if val == locator), None)
@@ -642,20 +645,23 @@ class _ElementKeywords(KeywordGroup):
             if required and len(elements) == 0:
                 raise ValueError("Element locator '" + locator + "' did not match any elements.")
             if first_only:
-                if len(elements) == 0: 
-                    self._info("Attemping Healing Locator...")
-                    elements_in_page = self.healing_client.restructure_json(json.loads(self.healing_client.xml_to_json(application.page_source)), keys_to_keep=["package","text", "resource-id", "bounds", "content-desc"])
+                if len(elements) == 0 and self_healing:
+                    self._info("Attempting Healing Locator...")
+                    elements_in_page = self.healing_client.restructure_json(
+                        json.loads(self.healing_client.xml_to_json(application.page_source)),
+                        keys_to_keep=["package", "text", "resource-id", "bounds", "content-desc"])
                     healing_candidate = self.healing_client.select_locator_from_database(variable_name)
                     self._info(healing_candidate)
                     if healing_candidate:
-                        healing_candidate, similarity_score = self.healing_client.find_most_similar(healing_candidate, elements_in_page)
+                        healing_candidate, similarity_score = self.healing_client.find_most_similar(healing_candidate,
+                                                                                                    elements_in_page)
                         if similarity_score >= 50:
-                            #TODO: new xpath how it will be constructed???
+                            # TODO: new xpath how it will be constructed???
                             locator = f"//{healing_candidate['tag']}[@resource-id='{healing_candidate['attributes']['resource-id']}']"
                             self._info(locator)
                             return self._element_finder.find(application, locator, tag)[0]
                     return None
-                if self.healing_client:    
+                if self.healing_client:
                     self.healing_client.add_locator_to_database(elements, locator, variable_name)
                 else:
                     raise ValueError("Database not connected")
@@ -669,9 +675,9 @@ class _ElementKeywords(KeywordGroup):
         # ... or raise locator/element specific error if required
         return elements
 
-    def _element_find_by_text(self, text, exact_match=False):
+    def _element_find_by_text(self, text, exact_match=False, self_healing=True):
         if self._get_platform() == 'ios':
-            element = self._element_find(text, True, False)
+            element = self._element_find(text, True, False, self_healing=self_healing)
             if element:
                 return element
             else:
@@ -687,8 +693,8 @@ class _ElementKeywords(KeywordGroup):
                 _xpath = u'//*[contains(@{},"{}")]'.format('text', text)
             return self._element_find(_xpath, True, True)
 
-    def _get_text(self, locator, first_only: bool = True):
-        element = self._element_find(locator, first_only, True)
+    def _get_text(self, locator, first_only: bool = True, self_healing=True):
+        element = self._element_find(locator, first_only, True, self_healing=self_healing)
         if element is not None:
             if first_only:
                 return element.text
@@ -700,13 +706,12 @@ class _ElementKeywords(KeywordGroup):
         source_norm = normalize('NFD', self.get_source())
         return text_norm in source_norm
 
-    def _is_element_present(self, locator):
-        application = self._current_application()
-        elements = self._element_finder.find(application, locator, None)
+    def _is_element_present(self, locator, self_healing=True):
+        elements = self._element_find(locator, True, False, self_healing=self_healing)
         return len(elements) > 0
 
-    def _is_visible(self, locator):
-        element = self._element_find(locator, True, False)
+    def _is_visible(self, locator, self_healing=True):
+        element = self._element_find(locator, True, False, self_healing=self_healing)
         if element is not None:
             return element.is_displayed()
         return None
