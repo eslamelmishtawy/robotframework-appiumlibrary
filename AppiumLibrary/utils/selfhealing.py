@@ -38,7 +38,7 @@ class SelfHealing:
         except Exception as e:
             logging.error("An unexpected error occurred:", e)
 
-    def add_locator_to_database(self, elements, locator, locator_variable_name):
+    def add_locator_to_database(self, elements, locator, locator_variable_name, current_activity):
         """Adds a found element and its associated metadata to the database.
 
         Parameters
@@ -50,37 +50,58 @@ class SelfHealing:
         locator_variable_name : str
             the varibale name in robot file
         """
-        db = self.client["ROBOT_ELEMENTS"]
-        collection = db["elements"]
-        item = {
-            "name": locator_variable_name,
-            "locator": locator,
-            "tag": elements[0].get_attribute("classname"),
-            "attributes": {
-            "text": elements[0].text,
-            "package": elements[0].get_attribute("package"),
-            "resource-id": elements[0].get_attribute("resource-id"),
-            "bounds": f"{elements[0].location}, {elements[0].size}",
-            "content-desc": elements[0].get_attribute("content-desc")
-            },
-            "created-at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "last-time-passed": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        }
-        existing_document = collection.find_one({"name": locator_variable_name, 
-                                                     "locator": locator})
-        if existing_document:
-            print("Document already exists in the collection.")
-        else:
-            result = collection.insert_one(item)
-            logging.info(f"Document inserted successfully with ID: {result.inserted_id}")
+        existing_name = None
+        existing_locator = None
+        try:
+            db = self.client["ROBOT_ELEMENTS"]
+            collection = db["elements"]
+            item = {
+                "name": locator_variable_name,
+                "locator": locator,
+                "activity": current_activity,
+                "tag": elements[0].get_attribute("classname"),
+                "attributes": {
+                    "text": elements[0].text,
+                    "package": elements[0].get_attribute("package"),
+                    "resource-id": elements[0].get_attribute("resource-id"),
+                    "bounds": f"{elements[0].location}, {elements[0].size}",
+                    "content-desc": elements[0].get_attribute("content-desc"),
+                },
+                "created-at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "last-time-passed": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            }
+            if locator_variable_name:
+                existing_name = collection.find_one({"name": locator_variable_name})
+            else:
+                existing_locator = collection.find_one({"locator": locator})
             
-    def select_locator_from_database(self, locator_variable_name):
+            if existing_name:
+                logging.info("Locator with same variable name exists in Database, Updating locator value...")
+                collection.update_one({"name": locator_variable_name}, {"$set": {"locator": locator,
+                                                                                 "last-time-passed": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}})
+            else:
+                if existing_locator:
+                    logging.warning("Locator is found with no variable name")
+                    logging.info(f"Please add variable name to {locator}")
+                    return
+                result = collection.insert_one(item)
+                logging.info(f"Document inserted successfully with ID: {result.inserted_id}")
+
+        except errors.ConnectionFailure as e:
+            logging.error(f"Database not connected: {e}")
+        except Exception as e:
+            logging.error(f"An unexpected error occurred: {e}")
+            
+    def select_locator_from_database(self, locator_variable_name, locator):
         db = self.client["ROBOT_ELEMENTS"]
         collection = db["elements"]
-        existing_document = collection.find_one({"name": locator_variable_name})
-        if existing_document:
+        existing_name = collection.find_one({"name": locator_variable_name})
+        existing_locator = collection.find_one({"locator": locator})
+        if existing_name:
             return {'tag': existing_document['tag'], 'attributes':existing_document['attributes']}
         else:
+            if existing_locator:
+                return {'tag': existing_locator['tag'], 'attributes':existing_locator['attributes']}
             logging.info("Couldn't find any related elements")
             return None
         
@@ -106,7 +127,7 @@ class SelfHealing:
         parsed_data = self.parse_element(root)
         return json.dumps(parsed_data, indent=4)
     
-    def restructure_json(self, data, keys_to_keep=None):
+    def restructure_json(self, data, current_activity, keys_to_keep=None):
         """Restructure JSON to ensure the tag and attributes are at the top level."""
         result = []
         if keys_to_keep is None:
@@ -118,6 +139,7 @@ class SelfHealing:
                     filtered_attributes = {k: v for k, v in attributes.items() if k in keys_to_keep}
                     flat_structure = {
                         "tag": element["tag"],
+                        "activity": current_activity,
                         "attributes": filtered_attributes
                     }
                     result.append(flat_structure)
@@ -195,3 +217,18 @@ class SelfHealing:
                 highest_similarity = similarity
 
         return most_similar_object, highest_similarity
+    
+    def apply_self_healing(self, application, variable_name, locator):
+        logging.info("Attemping Healing Locator...")
+        elements_in_page = self.restructure_json(json.loads(self.xml_to_json(application.page_source)), application.current_activity, keys_to_keep=["package","text", "resource-id", "bounds", "content-desc"])
+        healing_candidate = self.select_locator_from_database(variable_name, locator)
+        logging.info(f"Healing Candidate From Database: {healing_candidate}")
+        if healing_candidate:
+            healing_candidate, similarity_score = self.find_most_similar(healing_candidate, elements_in_page)
+            logging.info(f"Similarity Score between failed element and most similar element is: {similarity_score}")
+            if similarity_score >= 50:
+                #TODO: new xpath how it will be constructed???
+                locator = f"//{healing_candidate['tag']}[@resource-id='{healing_candidate['attributes']['resource-id']}']"
+                return locator
+        logging.info("Could not apply self healing")
+        return None

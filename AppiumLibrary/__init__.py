@@ -106,7 +106,9 @@ class AppiumLibrary(
         self.set_appium_timeout(timeout)
         self.register_keyword_to_run_on_failure(run_on_failure)
         self.set_sleep_between_wait_loop(sleep_between_wait_loop)
-        self.self_healing= self_healing
+        self.self_healing=self_healing
         
         if self.self_healing:
             self.healing_client = SelfHealing()
+        else:
+            self.healing_client = None

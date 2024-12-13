@@ -635,6 +635,7 @@ class _ElementKeywords(KeywordGroup):
     def _element_find(self, locator, first_only, required, tag=None):
         application = self._current_application()
         elements = None
+        self._info(self._bi.get_variables().items())
         variable_name = next((name for name, val in self._bi.get_variables().items() if val == locator), None)
         if isstr(locator):
             _locator = locator
@@ -642,23 +643,14 @@ class _ElementKeywords(KeywordGroup):
             if required and len(elements) == 0:
                 raise ValueError("Element locator '" + locator + "' did not match any elements.")
             if first_only:
-                if len(elements) == 0: 
-                    self._info("Attemping Healing Locator...")
-                    elements_in_page = self.healing_client.restructure_json(json.loads(self.healing_client.xml_to_json(application.page_source)), keys_to_keep=["package","text", "resource-id", "bounds", "content-desc"])
-                    healing_candidate = self.healing_client.select_locator_from_database(variable_name)
-                    self._info(healing_candidate)
-                    if healing_candidate:
-                        healing_candidate, similarity_score = self.healing_client.find_most_similar(healing_candidate, elements_in_page)
-                        if similarity_score >= 50:
-                            #TODO: new xpath how it will be constructed???
-                            locator = f"//{healing_candidate['tag']}[@resource-id='{healing_candidate['attributes']['resource-id']}']"
-                            self._info(locator)
+                if len(elements) == 0:
+                    if self.healing_client: 
+                        locator = self.healing_client.apply_self_healing(application, variable_name, locator)
+                        if locator:
                             return self._element_finder.find(application, locator, tag)[0]
                     return None
                 if self.healing_client:    
-                    self.healing_client.add_locator_to_database(elements, locator, variable_name)
-                else:
-                    raise ValueError("Database not connected")
+                    self.healing_client.add_locator_to_database(elements, locator, variable_name, application.current_activity)
                 return elements[0]
         elif isinstance(locator, WebElement):
             if first_only:
