@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+import logging
 import os
 import robot
 import inspect
@@ -8,7 +8,6 @@ from appium.options.common import AppiumOptions
 from AppiumLibrary.utils import ApplicationCache
 from .keywordgroup import KeywordGroup
 from AppiumLibrary.utils.selfhealing import SelfHealing
-from AppiumLibrary import AppiumLibrary
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -62,6 +61,10 @@ class _ApplicationManagementKeywords(KeywordGroup):
         application = webdriver.Remote(str(remote_url), options=desired_caps, strict_ssl=strict_ssl)
 
         self._debug('Opened application with session id %s' % application.session_id)
+        if self.healing_client:
+            self._info("Appium Self-Healing for all locators are enabled")
+        else:
+            self._info("Appium Self-Healing disabled")
 
         return self._cache.register(application, alias)
 
@@ -181,9 +184,9 @@ class _ApplicationManagementKeywords(KeywordGroup):
         used by all of them can be enabled using this method. Supported Keywords can separately disable self-healing
         using same argument name
         """
-        AppiumLibrary.healing_client = None
+        self.healing_client = None
         if self_healing == 'enabled':
-            AppiumLibrary.healing_client = SelfHealing()
+            self.healing_client = SelfHealing()
 
     def get_appium_sessionId(self):
         """Returns the current session ID as a reference"""
