@@ -155,14 +155,14 @@ class _ElementKeywords(KeywordGroup):
                                  "but did not" % locator)
         self._info("Current page contains element '%s'." % locator)
 
-    def page_should_not_contain_element(self, locator, loglevel='INFO'):
+    def page_should_not_contain_element(self, locator, loglevel='INFO', self_healing=False):
         """Verifies that current page not contains `locator` element.
 
         If this keyword fails, it automatically logs the page source
         using the log level specified with the optional `loglevel` argument.
         Giving `NONE` as level disables logging.
         """
-        if self._is_element_present(locator):
+        if self._is_element_present(locator, self_healing=self_healing):
             self.log_source(loglevel)
             raise AssertionError("Page should not have contained element '%s'" % locator)
         self._info("Current page not contains element '%s'." % locator)
@@ -381,8 +381,8 @@ class _ElementKeywords(KeywordGroup):
 
     def get_webelement_in_webelement(self, element, locator):
         # TODO: Refactor for self._element_finder.find to self._element_find
-        """ 
-        Returns a single [http://selenium-python.readthedocs.io/api.html#module-selenium.webdriver.remote.webelement|WebElement] 
+        """
+        Returns a single [http://selenium-python.readthedocs.io/api.html#module-selenium.webdriver.remote.webelement|WebElement]
         objects matching ``locator`` that is a child of argument element.
 
         This is useful when your HTML doesn't properly have id or name elements on all elements.
@@ -634,37 +634,50 @@ class _ElementKeywords(KeywordGroup):
         except Exception as e:
             raise e
 
-    def _element_find(self, locator, first_only, required, tag=None, self_healing=None):
+    def _element_find(self, locator, first_only, required, tag=None, self_healing=True):
         application = self._current_application()
         elements = None
-        variable_name = next((name for name, val in self._bi.get_variables().items() if val == locator), None)
+        locator_variable_name = next((name for name, val in self._bi.get_variables().items() if val == locator), None)
         if isstr(locator):
             _locator = locator
             elements = self._element_finder.find(application, _locator, tag)
             if required and len(elements) == 0:
-                raise ValueError("Element locator '" + locator + "' did not match any elements.")
+                if self.healing_client and self_healing:
+                    new_healed_locator = self.healing_client.apply_self_healing(application,
+                                                                                locator_variable_name,
+                                                                                locator)
+                    if new_healed_locator:
+                        self._info(f"found element: {self._element_finder.find(application, locator, tag)}")
+                        found_healed_element = self._element_finder.find(application, new_healed_locator, tag)[0]
+                        if found_healed_element:
+                            self.healing_client.add_locator_to_database(found_element, new_healed_locator,
+                                                                        locator_variable_name,
+                                                                        application.current_activity)
+                        return found_healed_element
+                    else:
+                        raise ValueError("Element locator '" + new_healed_locator + "' did not match any elements.")
+                else:
+                    raise ValueError("Element locator '" + locator + "' did not match any elements.")
             if first_only:
                 if len(elements) == 0:
                     if self.healing_client and self_healing:
-                        self._info(f"Attempting Healing Locator: '{locator}'")
-                        elements_in_page = self.healing_client.restructure_json(
-                            json.loads(self.healing_client.xml_to_json(application.page_source)),
-                            keys_to_keep=["package", "text", "resource-id", "bounds", "content-desc"])
-                        healing_candidate = self.healing_client.select_locator_from_database(variable_name)
-                        self._info(healing_candidate)
-                        if healing_candidate:
-                            healing_candidate, similarity_score = self.healing_client.find_most_similar(healing_candidate,
-                                                                                                        elements_in_page)
-                            if similarity_score >= 50:
-                                # TODO: new xpath how it will be constructed???
-                                locator = f"//{healing_candidate['tag']}[@resource-id='{healing_candidate['attributes']['resource-id']}']"
-                                self._info(locator)
-                                return self._element_finder.find(application, locator, tag)[0]
+                        new_healed_locator = self.healing_client.apply_self_healing(application,
+                                                                                    locator_variable_name,
+                                                                                    locator)
+                        if new_healed_locator:
+                            self._info(
+                                f"found element: {self._element_finder.find(application, new_healed_locator, tag)}")
+                            found_healed_element = self._element_finder.find(application, new_healed_locator, tag)[0]
+                            if found_healed_element:
+                                self.healing_client.add_locator_to_database(found_element, new_healed_locator,
+                                                                            locator_variable_name,
+                                                                            application.current_activity)
+
+                            return found_healed_element
                     return None
-                if self.healing_client:
-                    self.healing_client.add_locator_to_database(elements, locator, variable_name)
-                else:
-                    raise ValueError("Database not connected")
+                self.healing_client.add_locator_to_database(elements[0], locator,
+                                                            locator_variable_name,
+                                                            application.current_activity)
                 return elements[0]
         elif isinstance(locator, WebElement):
             if first_only:
@@ -673,6 +686,8 @@ class _ElementKeywords(KeywordGroup):
                 elements = [locator]
         # do some other stuff here like deal with list of webelements
         # ... or raise locator/element specific error if required
+        self.healing_client.add_locator_to_database(elements, locator,
+                                                    locator_variable_name, application.current_activity)
         return elements
 
     def _element_find_by_text(self, text, exact_match=False, self_healing=True):
@@ -708,7 +723,8 @@ class _ElementKeywords(KeywordGroup):
 
     def _is_element_present(self, locator, self_healing=True):
         elements = self._element_find(locator, True, False, self_healing=self_healing)
-        return len(elements) > 0
+        element_present = False if not elements else len(elements) > 0
+        return element_present
 
     def _is_visible(self, locator, self_healing=True):
         element = self._element_find(locator, True, False, self_healing=self_healing)
