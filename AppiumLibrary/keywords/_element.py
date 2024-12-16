@@ -155,7 +155,7 @@ class _ElementKeywords(KeywordGroup):
                                  "but did not" % locator)
         self._info("Current page contains element '%s'." % locator)
 
-    def page_should_not_contain_element(self, locator, loglevel='INFO', self_healing=False):
+    def page_should_not_contain_element(self, locator, loglevel='INFO', self_healing=True):
         """Verifies that current page not contains `locator` element.
 
         If this keyword fails, it automatically logs the page source
@@ -650,12 +650,12 @@ class _ElementKeywords(KeywordGroup):
                         self._info(f"found element: {self._element_finder.find(application, locator, tag)}")
                         found_healed_element = self._element_finder.find(application, new_healed_locator, tag)[0]
                         if found_healed_element:
-                            self.healing_client.add_locator_to_database(found_element, new_healed_locator,
+                            self.healing_client.add_locator_to_database(found_healed_element, new_healed_locator,
                                                                         locator_variable_name,
                                                                         application.current_activity)
                         return found_healed_element
                     else:
-                        raise ValueError("Element locator '" + new_healed_locator + "' did not match any elements.")
+                        raise ValueError("Element locator '" + locator + "' did not match any elements.")
                 else:
                     raise ValueError("Element locator '" + locator + "' did not match any elements.")
             if first_only:
@@ -669,7 +669,7 @@ class _ElementKeywords(KeywordGroup):
                                 f"found element: {self._element_finder.find(application, new_healed_locator, tag)}")
                             found_healed_element = self._element_finder.find(application, new_healed_locator, tag)[0]
                             if found_healed_element:
-                                self.healing_client.add_locator_to_database(found_element, new_healed_locator,
+                                self.healing_client.add_locator_to_database(found_healed_element, new_healed_locator,
                                                                             locator_variable_name,
                                                                             application.current_activity)
 
