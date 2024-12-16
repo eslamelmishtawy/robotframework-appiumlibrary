@@ -55,13 +55,13 @@ class SelfHealing:
                 "name": locator_variable_name,
                 "locator": locator,
                 "activity": current_activity,
-                "tag": elements[0].get_attribute("classname"),
+                "tag": elements.get_attribute("classname"),
                 "attributes": {
-                    "text": elements[0].text,
-                    "package": elements[0].get_attribute("package"),
-                    "resource-id": elements[0].get_attribute("resource-id"),
-                    "bounds": f"{elements[0].location}, {elements[0].size}",
-                    "content-desc": elements[0].get_attribute("content-desc"),
+                    "text": elements.text,
+                    "package": elements.get_attribute("package"),
+                    "resource-id": elements.get_attribute("resource-id"),
+                    "bounds": f"{elements.location}, {elements.size}",
+                    "content-desc": elements.get_attribute("content-desc"),
                 },
                 "created-at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "last-time-passed": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -79,8 +79,7 @@ class SelfHealing:
                                                          "%Y-%m-%d %H:%M:%S")}})
             else:
                 if existing_locator:
-                    logging.warning("Locator is found with no variable name")
-                    logging.warning(f"Please add variable name to {locator}")
+                    logging.warning(f"Locator is found with no variable name. Please add variable name to {locator}")
                     return
                 result = self.collection.insert_one(item)
                 logging.info(f"Document inserted successfully with ID: {result.inserted_id}")
@@ -88,7 +87,7 @@ class SelfHealing:
         except errors.ConnectionFailure as e:
             logging.error(f"Database not connected: {e}")
         except Exception as e:
-            logging.error(f"An unexpected error occurred: {e}")
+            logging.error(f"An unexpected error occurredddd: {e}")
 
     def select_locator_from_database(self, locator_variable_name, locator):
         existing_name = self.collection.find_one({"name": locator_variable_name})
