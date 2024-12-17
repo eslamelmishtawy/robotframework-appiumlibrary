@@ -62,9 +62,10 @@ class _ApplicationManagementKeywords(KeywordGroup):
 
         self._debug('Opened application with session id %s' % application.session_id)
         if self.healing_client:
-            self._info("Appium Self-Healing for all locators are enabled")
+            self._info("Appium Self-Healing for all locators are enabled across supported keywords")
         else:
-            self._info("Appium Self-Healing disabled")
+            self._info("""Appium Self-healing is disabled. For switching on, import Appium Library like following:
+Library     AppiumLibrary       self_healing=enabled""")
 
         return self._cache.register(application, alias)
 
@@ -176,7 +177,7 @@ class _ApplicationManagementKeywords(KeywordGroup):
         self._timeout_in_secs = robot.utils.timestr_to_secs(seconds)
         return old_timeout
 
-    def set_appium_self_healing(self, self_healing):
+    def set_appium_self_healing(self, self_healing, update_healed_locator):
         """Toggle for Appium self-healing feature used by various keywords.
 
         There are several keywords that take self_healing as an
@@ -186,7 +187,8 @@ class _ApplicationManagementKeywords(KeywordGroup):
         """
         self.healing_client = None
         if self_healing == 'enabled':
-            self.healing_client = SelfHealing()
+            self.update_healed_locator = True if update_healed_locator == 'enabled' else False
+            self.healing_client = SelfHealing(self.update_healed_locator)
 
     def get_appium_sessionId(self):
         """Returns the current session ID as a reference"""
