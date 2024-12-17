@@ -652,7 +652,8 @@ class _ElementKeywords(KeywordGroup):
                         if found_healed_element:
                             self.healing_client.add_locator_to_database(found_healed_element, new_healed_locator,
                                                                         locator_variable_name,
-                                                                        application.current_activity)
+                                                                        application.current_activity,
+                                                                        old_locator=locator)
                         return found_healed_element
                     else:
                         raise ValueError("Element locator '" + locator + "' did not match any elements.")
@@ -671,7 +672,8 @@ class _ElementKeywords(KeywordGroup):
                             if found_healed_element:
                                 self.healing_client.add_locator_to_database(found_healed_element, new_healed_locator,
                                                                             locator_variable_name,
-                                                                            application.current_activity)
+                                                                            application.current_activity,
+                                                                            old_locator=locator)
 
                             return found_healed_element
                     return None
