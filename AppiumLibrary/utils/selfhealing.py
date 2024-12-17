@@ -19,9 +19,10 @@ class SelfHealing:
     or DOM structure.
     """
 
-    def __init__(self, host='localhost', port=27017):
+    def __init__(self, host='localhost', port=27017, update_healed_locator=False):
         self.database = None
         self.collection = None
+        self.update_healed_locator = update_healed_locator
         try:
             self.client = MongoClient(
                 host=host,
@@ -40,7 +41,7 @@ class SelfHealing:
         except Exception as e:
             logging.error("An unexpected error occurred:", e)
 
-    def add_locator_to_database(self, elements, locator, locator_variable_name, current_activity):
+    def add_locator_to_database(self, elements, locator, locator_variable_name, current_activity, old_locator=None):
         """Adds a found element and its associated metadata to the database.
             @param elements: Element Value
             @param locator: Locator Value
@@ -77,11 +78,27 @@ class SelfHealing:
                                            {"$set": {"locator": locator,
                                                      "last-time-passed": datetime.now().strftime(
                                                          "%Y-%m-%d %H:%M:%S")}})
+                if self.update_healed_locator:
+                    if old_locator and old_locator!=locator:
+                        self.update_healed_locator_variable(old_locator_value=str(old_locator),
+                                                            new_locator_value=str(locator))
+                else:
+                    if old_locator and old_locator != locator:
+                        logging.warning("Locators are changed but not updated in Files."
+                                     " Please set update_healed_locator='enabled' for auto update")
             else:
                 if existing_locator:
                     logging.warning(f"Locator is found with no variable name. Please add variable name to {locator}")
                     return
                 result = self.collection.insert_one(item)
+                if self.update_healed_locator:
+                    if old_locator and old_locator != locator:
+                        self.update_healed_locator_variable(old_locator_value=str(old_locator),
+                                                            new_locator_value=str(locator))
+                else:
+                    if old_locator and old_locator != locator:
+                        logging.warning("Locators are changed but not updated in Files."
+                                        " Please set update_healed_locator='enabled' for auto update")
                 logging.info(f"Document inserted successfully with ID: {result.inserted_id}")
 
         except errors.ConnectionFailure as e:
@@ -234,3 +251,26 @@ class SelfHealing:
                 return locator
         logging.info("Could not apply self healing")
         return None
+
+    def update_healed_locator_variable(self, old_locator_value, new_locator_value, file_extension=['.robot']):
+        updated_files = []
+        current_directory = os.getcwd()
+        for root, _, files in os.walk(current_directory):
+
+            for file_name in files:
+
+                if any(file_name.endswith(ext) for ext in file_extensions):
+                    file_path = os.path.join(root, file_name)
+
+                    with open(file_path, "r") as file:
+                        content = file.read()
+                    if old_locator_value in content:
+
+                        updated_content = re.sub(re.escape(old_locator_value), new_locator_value, content)
+                        with open(file_path, "w") as file:
+                            file.write(updated_content)
+
+                        updated_files.append(file_path)
+                        print(f"Healed Locators updated in: {file_path} successfully")
+
+        return updated_files
