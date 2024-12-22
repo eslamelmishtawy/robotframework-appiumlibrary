@@ -1,3 +1,6 @@
+import os
+import re
+
 from pymongo import MongoClient, errors
 from datetime import datetime
 import logging
@@ -38,8 +41,8 @@ class SelfHealing:
             logging.error("Failed to connect to MongoDB:", e)
         except errors.OperationFailure as e:
             logging.error("Operation failed on MongoDB:", e)
-        except Exception as e:
-            logging.error("An unexpected error occurred:", e)
+        # except Exception as e:
+        #     logging.error("An unexpected error occurreddddd:", e)
 
     def add_locator_to_database(self, elements, locator, locator_variable_name, current_activity, old_locator=None):
         """Adds a found element and its associated metadata to the database.
@@ -79,13 +82,13 @@ class SelfHealing:
                                                      "last-time-passed": datetime.now().strftime(
                                                          "%Y-%m-%d %H:%M:%S")}})
                 if self.update_healed_locator:
-                    if old_locator and old_locator!=locator:
+                    if old_locator and old_locator != locator:
                         self.update_healed_locator_variable(old_locator_value=str(old_locator),
                                                             new_locator_value=str(locator))
                 else:
                     if old_locator and old_locator != locator:
                         logging.warning("Locators are changed but not updated in Files."
-                                     " Please set update_healed_locator='enabled' for auto update")
+                                        " Please set update_healed_locator='enabled' for auto update")
             else:
                 if existing_locator:
                     logging.warning(f"Locator is found with no variable name. Please add variable name to {locator}")
@@ -101,21 +104,27 @@ class SelfHealing:
                                         " Please set update_healed_locator='enabled' for auto update")
                 logging.info(f"Document inserted successfully with ID: {result.inserted_id}")
 
+
         except errors.ConnectionFailure as e:
-            logging.error(f"Database not connected: {e}")
+            logging.error(f"MongoDB not connected due to error: {e}")
         except Exception as e:
-            logging.error(f"An unexpected error occurredddd: {e}")
+            logging.error(f"An unexpected error occurred while connecting to MongoDB due to error : {e}")
 
     def select_locator_from_database(self, locator_variable_name, locator):
-        existing_name = self.collection.find_one({"name": locator_variable_name})
-        existing_locator = self.collection.find_one({"locator": locator})
-        if existing_name:
-            return {'tag': existing_name['tag'], 'attributes': existing_name['attributes']}
-        else:
-            if existing_locator:
-                return {'tag': existing_locator['tag'], 'attributes': existing_locator['attributes']}
-            logging.warning("Couldn't find any related elements")
-            return None
+        try:
+            existing_name = self.collection.find_one({"name": locator_variable_name})
+            existing_locator = self.collection.find_one({"locator": locator})
+            if existing_name:
+                return {'tag': existing_name['tag'], 'attributes': existing_name['attributes']}
+            else:
+                if existing_locator:
+                    return {'tag': existing_locator['tag'], 'attributes': existing_locator['attributes']}
+                logging.warning("Couldn't find any related elements")
+                return None
+        except errors.ConnectionFailure as e:
+            logging.error(f"MongoDB not connected due to error: {e}")
+        except Exception as e:
+            logging.error(f"An unexpected error occurred while connecting to MongoDB due to error : {e}")
 
     def parse_element(self, element):
         """Recursively parse XML elements into dictionary objects with nested children."""
@@ -252,7 +261,9 @@ class SelfHealing:
         logging.info("Could not apply self healing")
         return None
 
-    def update_healed_locator_variable(self, old_locator_value, new_locator_value, file_extension=['.robot']):
+    def update_healed_locator_variable(self, old_locator_value, new_locator_value, file_extensions=None):
+        if file_extensions is None:
+            file_extensions = ['.robot']
         updated_files = []
         current_directory = os.getcwd()
         for root, _, files in os.walk(current_directory):
@@ -265,7 +276,6 @@ class SelfHealing:
                     with open(file_path, "r") as file:
                         content = file.read()
                     if old_locator_value in content:
-
                         updated_content = re.sub(re.escape(old_locator_value), new_locator_value, content)
                         with open(file_path, "w") as file:
                             file.write(updated_content)
