@@ -62,10 +62,10 @@ class _ApplicationManagementKeywords(KeywordGroup):
 
         self._debug('Opened application with session id %s' % application.session_id)
         if self.healing_client:
-            self._info("Appium Self-Healing for all locators are enabled across supported keywords")
+            self._info("AppiumLibrary Intialized with Locator Self-Healing Capabilities ")
         else:
             self._info("""Appium Self-healing is disabled. For switching on, import Appium Library like following:
-Library     AppiumLibrary       self_healing=enabled""")
+                    Library     AppiumLibrary       self_healing=${True}""")
 
         return self._cache.register(application, alias)
 
@@ -186,9 +186,9 @@ Library     AppiumLibrary       self_healing=enabled""")
         using same argument name
         """
         self.healing_client = None
-        if self_healing == 'enabled':
-            self.update_healed_locator = True if update_healed_locator == 'enabled' else False
-            self.healing_client = SelfHealing(self.update_healed_locator)
+        if self_healing:
+            self.update_healed_locator = update_healed_locator
+            self.healing_client = SelfHealing(update_healed_locator=self.update_healed_locator)
 
     def get_appium_sessionId(self):
         """Returns the current session ID as a reference"""
