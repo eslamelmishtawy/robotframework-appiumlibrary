@@ -8,6 +8,7 @@ from typing import List, Dict, Tuple
 from difflib import SequenceMatcher
 from AppiumLibrary.locators.elementfinder import ElementFinder
 import re
+import os
 
 
 class SelfHealing:
@@ -117,6 +118,14 @@ class SelfHealing:
                                         f"Locator is : {locator} and old locator is: {old_locator}")
             else:
                 if existing_locator or existing_name:
+                    if self.update_healed_locator:
+                        if old_locator and old_locator != locator:
+                            self.update_healed_locator_variable(old_locator_value=str(old_locator),
+                                                                new_locator_value=str(locator))
+                    else:
+                        logging.warning("Locators are changed but not updated in Files."
+                                        " Please set update_healed_locator=${True} for auto update xxxx"
+                                        f"Locator is : {locator} and old locator is: {old_locator}")
                     return
                 result = self.collection.insert_one(item)
                 if self.update_healed_locator:
@@ -129,7 +138,14 @@ class SelfHealing:
                                         " Please set update_healed_locator=${True} for auto update")
                 logging.info(f"Document inserted successfully with ID: {result.inserted_id}")
 
-
+            if self.update_healed_locator:
+                logging.warning("Updating locators in Robot Files")
+                if old_locator and old_locator != locator:
+                    logging.warning("Updating locators in Robot Files Reallyyyy")
+                    self.update_healed_locator_variable(old_locator_value=str(old_locator),
+                                                        new_locator_value=str(locator))
+            else:
+                logging.warning("Update healed locator switched off")
         except errors.ConnectionFailure as e:
             logging.error(f"MongoDB not connected due to error: {e}")
         except Exception as e:
@@ -287,7 +303,7 @@ class SelfHealing:
         logging.info("Could not apply self healing, No Element matching found")
         return None
 
-    def update_healed_locator_variable(self, old_locator_value, new_locator_value, file_extension=['.robot']):
+    def update_healed_locator_variable(self, old_locator_value, new_locator_value, file_extensions=['.robot']):
         updated_files = []
         current_directory = os.getcwd()
         for root, _, files in os.walk(current_directory):
@@ -427,37 +443,3 @@ class SelfHealing:
         parts = [part for part in parts if part != '']
         # Convert to integers and return as a tuple
         return tuple(map(int, parts))
-
-    # def apply_healing_accurately(self, target_dict, candidate_dict_list, screen_size):
-    #
-    #     # Example Usage
-    #     target = {
-    #         "bounds": (100, 200, 50, 60),
-    #         "attributes": {
-    #             "text": "Submit",
-    #             "id": "button1",
-    #         },
-    #     }
-    #
-    #     candidates = [
-    #         {
-    #             "bounds": (102, 202, 52, 62),
-    #             "attributes": {
-    #                 "text": "Submit",
-    #                 "id": "button2",
-    #             },
-    #         },
-    #         {
-    #             "bounds": (300, 400, 70, 80),
-    #             "attributes": {
-    #                 "text": "Cancel",
-    #                 "id": "button3",
-    #             },
-    #         },
-    #     ]
-    #
-    #     screen_size = (1080, 1920)
-    #     result = self.find_closest_locator(target, candidates, screen_size)
-    #     print("Best match:", result)
-    #     return result
-
