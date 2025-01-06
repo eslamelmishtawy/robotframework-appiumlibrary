@@ -261,10 +261,15 @@ class _ElementKeywords(KeywordGroup):
 
         """
         elements = self._element_find(locator, False, True, self_healing=self_healing)
-        if elements:
-            self._info("CAUTION: '%s' matched %s elements - using the first element only" % (locator, elements))
+        if isinstance(elements, list):
 
-        attr_value = elements.get_attribute(attr_name)
+            if len(elements) > 1:
+                self._info(
+                    "CAUTION: '%s' matched %s elements - using the first element only" % (locator, len(elements)))
+
+            attr_value = elements[0].get_attribute(attr_name)
+        else:
+            attr_value = elements.get_attribute(attr_name)
 
         # ignore regexp argument if matching boolean
         if isinstance(match_pattern, bool) or match_pattern.lower() == 'true' or match_pattern.lower() == 'false':
@@ -423,15 +428,21 @@ class _ElementKeywords(KeywordGroup):
         | Get Element Attribute | locator | name |
         | Get Element Attribute | locator | value |
         """
+        element_for_attribute = None
         elements = self._element_find(locator, False, True, self_healing=self_healing)
-        # ele_len = len(elements)
-        # if ele_len == 0:
-        #     raise AssertionError("Element '%s' could not be found" % locator)
-        # elif ele_len > 1:
-        #     self._info("CAUTION: '%s' matched %s elements - using the first element only" % (locator, len(elements)))
+        if isinstance(elements, list):
+            ele_len = len(elements)
+            if ele_len == 0:
+                raise AssertionError("Element '%s' could not be found" % locator)
+            elif ele_len > 1:
+                self._info(
+                    "CAUTION: '%s' matched %s elements - using the first element only" % (locator, len(elements)))
+            element_for_attribute = elements[0]
+        else:
+            element_for_attribute = elements
 
         try:
-            attr_val = elements.get_attribute(attribute)
+            attr_val = element_for_attribute.get_attribute(attribute)
             self._info("Element '%s' attribute '%s' value '%s' " % (locator, attribute, attr_val))
             return attr_val
         except:
