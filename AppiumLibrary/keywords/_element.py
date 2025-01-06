@@ -155,7 +155,7 @@ class _ElementKeywords(KeywordGroup):
                                  "but did not" % locator)
         self._info("Current page contains element '%s'." % locator)
 
-    def page_should_not_contain_element(self, locator, loglevel='INFO', self_healing=True):
+    def page_should_not_contain_element(self, locator, loglevel='INFO', self_healing=False):
         """Verifies that current page not contains `locator` element.
 
         If this keyword fails, it automatically logs the page source
@@ -261,10 +261,10 @@ class _ElementKeywords(KeywordGroup):
 
         """
         elements = self._element_find(locator, False, True, self_healing=self_healing)
-        if len(elements) > 1:
-            self._info("CAUTION: '%s' matched %s elements - using the first element only" % (locator, len(elements)))
+        if elements:
+            self._info("CAUTION: '%s' matched %s elements - using the first element only" % (locator, elements))
 
-        attr_value = elements[0].get_attribute(attr_name)
+        attr_value = elements.get_attribute(attr_name)
 
         # ignore regexp argument if matching boolean
         if isinstance(match_pattern, bool) or match_pattern.lower() == 'true' or match_pattern.lower() == 'false':
@@ -424,14 +424,14 @@ class _ElementKeywords(KeywordGroup):
         | Get Element Attribute | locator | value |
         """
         elements = self._element_find(locator, False, True, self_healing=self_healing)
-        ele_len = len(elements)
-        if ele_len == 0:
-            raise AssertionError("Element '%s' could not be found" % locator)
-        elif ele_len > 1:
-            self._info("CAUTION: '%s' matched %s elements - using the first element only" % (locator, len(elements)))
+        # ele_len = len(elements)
+        # if ele_len == 0:
+        #     raise AssertionError("Element '%s' could not be found" % locator)
+        # elif ele_len > 1:
+        #     self._info("CAUTION: '%s' matched %s elements - using the first element only" % (locator, len(elements)))
 
         try:
-            attr_val = elements[0].get_attribute(attribute)
+            attr_val = elements.get_attribute(attribute)
             self._info("Element '%s' attribute '%s' value '%s' " % (locator, attribute, attr_val))
             return attr_val
         except:
@@ -636,6 +636,7 @@ class _ElementKeywords(KeywordGroup):
 
     def _element_find(self, locator, first_only, required, tag=None, self_healing=True):
         application = self._current_application()
+        window_size = self._current_application().get_window_size()
         elements = None
         locator_variable_name = next((name for name, val in self._bi.get_variables().items() if val == locator), None)
         if isstr(locator):
@@ -643,11 +644,11 @@ class _ElementKeywords(KeywordGroup):
             elements = self._element_finder.find(application, _locator, tag)
             if required and len(elements) == 0:
                 if self.healing_client and self_healing:
-                    new_healed_locator = self.healing_client.apply_self_healing(application,
-                                                                                locator_variable_name,
-                                                                                locator)
+                    new_healed_locator = self.healing_client.apply_self_healing(application, locator_variable_name,
+                                                                                locator, window_size)
                     if new_healed_locator:
-                        self._info(f"found element: {self._element_finder.find(application, locator, tag)}")
+                        self._info(
+                            f"found element: {self._element_finder.find(application, new_healed_locator, tag)[0]}")
                         found_healed_element = self._element_finder.find(application, new_healed_locator, tag)[0]
                         if found_healed_element:
                             self.healing_client.add_locator_to_database(found_healed_element, new_healed_locator,
@@ -662,9 +663,8 @@ class _ElementKeywords(KeywordGroup):
             if first_only:
                 if len(elements) == 0:
                     if self.healing_client and self_healing:
-                        new_healed_locator = self.healing_client.apply_self_healing(application,
-                                                                                    locator_variable_name,
-                                                                                    locator)
+                        new_healed_locator = self.healing_client.apply_self_healing(application, locator_variable_name,
+                                                                                    locator, window_size)
                         if new_healed_locator:
                             self._info(
                                 f"found element: {self._element_finder.find(application, new_healed_locator, tag)}")
@@ -677,9 +677,10 @@ class _ElementKeywords(KeywordGroup):
 
                             return found_healed_element
                     return None
-                self.healing_client.add_locator_to_database(elements[0], locator,
-                                                            locator_variable_name,
-                                                            application.current_activity)
+                if self.healing_client:
+                    self.healing_client.add_locator_to_database(elements[0], locator,
+                                                                locator_variable_name,
+                                                                application.current_activity)
                 return elements[0]
         elif isinstance(locator, WebElement):
             if first_only:
@@ -688,8 +689,9 @@ class _ElementKeywords(KeywordGroup):
                 elements = [locator]
         # do some other stuff here like deal with list of webelements
         # ... or raise locator/element specific error if required
-        self.healing_client.add_locator_to_database(elements, locator,
-                                                    locator_variable_name, application.current_activity)
+        if self.healing_client:
+            self.healing_client.add_locator_to_database(elements[0], locator, locator_variable_name,
+                                                        application.current_activity)
         return elements
 
     def _element_find_by_text(self, text, exact_match=False, self_healing=True):
@@ -725,7 +727,7 @@ class _ElementKeywords(KeywordGroup):
 
     def _is_element_present(self, locator, self_healing=True):
         elements = self._element_find(locator, True, False, self_healing=self_healing)
-        element_present = False if not elements else len(elements) > 0
+        element_present = False if not elements else True
         return element_present
 
     def _is_visible(self, locator, self_healing=True):

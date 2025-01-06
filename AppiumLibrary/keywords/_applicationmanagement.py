@@ -177,7 +177,7 @@ class _ApplicationManagementKeywords(KeywordGroup):
         self._timeout_in_secs = robot.utils.timestr_to_secs(seconds)
         return old_timeout
 
-    def set_appium_self_healing(self, self_healing, update_healed_locator):
+    def set_appium_self_healing(self, self_healing, update_healed_locator, similarity_percentage):
         """Toggle for Appium self-healing feature used by various keywords.
 
         There are several keywords that take self_healing as an
@@ -188,7 +188,8 @@ class _ApplicationManagementKeywords(KeywordGroup):
         self.healing_client = None
         if self_healing:
             self.update_healed_locator = update_healed_locator
-            self.healing_client = SelfHealing(update_healed_locator=self.update_healed_locator)
+            self.healing_client = SelfHealing(update_healed_locator=self.update_healed_locator,
+                                              similarity_percentage=similarity_percentage)
 
     def get_appium_sessionId(self):
         """Returns the current session ID as a reference"""
