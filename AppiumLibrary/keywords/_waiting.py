@@ -1,7 +1,6 @@
 import time
 import robot
 from .keywordgroup import KeywordGroup
-from .. import SelfHealing
 
 
 # def _get_appium_library_self_healing():
@@ -23,18 +22,18 @@ class _WaitingKeywords(KeywordGroup):
 
         `error` can be used to override the default error message.
 
-        See also `Wait Until Page Contains`, `Wait Until Page Contains 
+        See also `Wait Until Page Contains`, `Wait Until Page Contains
         Element`, `Wait For Condition` and BuiltIn keyword `Wait Until Keyword
         Succeeds`.
         """
 
         def check_visibility():
-            visible = self._is_visible(locator, self_healing)
+            visible = self._is_visible(locator, self_healing=self_healing)
             if visible:
                 return
             elif visible is None:
                 return error or "Element locator '%s' did not match any elements after %s" % (
-                locator, self._format_timeout(timeout))
+                    locator, self._format_timeout(timeout))
             else:
                 return error or "Element '%s' was not visible in %s" % (locator, self._format_timeout(timeout))
 
@@ -126,7 +125,7 @@ class _WaitingKeywords(KeywordGroup):
 
     def set_sleep_between_wait_loop(self, seconds=0.2):
         """Sets the sleep in seconds used by wait until loop.
-        
+
         If you use the remote appium server, the default value is not recommended because 
         it is another 200ms overhead to the network latency and will slow down your test
         execution.

@@ -21,7 +21,8 @@ class _ApplicationManagementKeywords(KeywordGroup):
 
     def close_application(self):
         """Closes the current application and also close webdriver session."""
-        self._debug('Closing application with session id %s' % self._current_application().session_id)
+        self._debug('Closing application with session id %s' %
+                    self._current_application().session_id)
         self._cache.close()
 
     def close_all_applications(self):
@@ -58,14 +59,17 @@ class _ApplicationManagementKeywords(KeywordGroup):
             self._debug(f"strict_ssl found as {strict_ssl}")
 
         desired_caps = AppiumOptions().load_capabilities(caps=kwargs)
-        application = webdriver.Remote(str(remote_url), options=desired_caps, strict_ssl=strict_ssl)
+        application = webdriver.Remote(
+            str(remote_url), options=desired_caps, strict_ssl=strict_ssl)
 
-        self._debug('Opened application with session id %s' % application.session_id)
+        self._debug('Opened application with session id %s' %
+                    application.session_id)
         if self.healing_client:
-            self._info("Appium Self-Healing for all locators are enabled across supported keywords")
+            self._info(
+                "AppiumLibrary Intialized with Locator Self-Healing Capabilities ")
         else:
             self._info("""Appium Self-healing is disabled. For switching on, import Appium Library like following:
-Library     AppiumLibrary       self_healing=enabled""")
+                    Library     AppiumLibrary       self_healing=${True}""")
 
         return self._cache.register(application, alias)
 
@@ -177,7 +181,7 @@ Library     AppiumLibrary       self_healing=enabled""")
         self._timeout_in_secs = robot.utils.timestr_to_secs(seconds)
         return old_timeout
 
-    def set_appium_self_healing(self, self_healing, update_healed_locator):
+    def set_appium_self_healing(self, self_healing, update_healed_locator, similarity_percentage, healing_strategy):
         """Toggle for Appium self-healing feature used by various keywords.
 
         There are several keywords that take self_healing as an
@@ -186,13 +190,15 @@ Library     AppiumLibrary       self_healing=enabled""")
         using same argument name
         """
         self.healing_client = None
-        if self_healing == 'enabled':
-            self.update_healed_locator = True if update_healed_locator == 'enabled' else False
-            self.healing_client = SelfHealing(self.update_healed_locator)
+        if self_healing:
+            self.update_healed_locator = update_healed_locator
+            self.healing_client = SelfHealing(
+                update_healed_locator=self.update_healed_locator, similarity_percentage=similarity_percentage, healing_strategy=healing_strategy)
 
     def get_appium_sessionId(self):
         """Returns the current session ID as a reference"""
-        self._info("Appium Session ID: " + self._current_application().session_id)
+        self._info("Appium Session ID: " +
+                   self._current_application().session_id)
         return self._current_application().session_id
 
     def get_source(self):
@@ -209,7 +215,7 @@ Library     AppiumLibrary       self_healing=enabled""")
         if ll == 'NONE':
             return ''
         else:
-            if  "run_keyword_and_ignore_error" not in [check_error_ignored[3] for check_error_ignored in inspect.stack()]:
+            if "run_keyword_and_ignore_error" not in [check_error_ignored[3] for check_error_ignored in inspect.stack()]:
                 source = self._current_application().page_source
                 self._log(source, ll)
                 return source
@@ -315,7 +321,6 @@ Library     AppiumLibrary       self_healing=enabled""")
         duration.
         """
         self._current_application().background_app(seconds)
-
 
     def activate_application(self, app_id):
         """
@@ -463,7 +468,8 @@ Library     AppiumLibrary       self_healing=enabled""")
         Return the desired capability value by desired capability name
         """
         try:
-            capability = self._current_application().capabilities[capability_name]
+            capability = self._current_application(
+            ).capabilities[capability_name]
         except Exception as e:
             raise e
         return capability
@@ -490,7 +496,8 @@ Library     AppiumLibrary       self_healing=enabled""")
 
     def _get_platform(self):
         try:
-            platform_name = self._current_application().capabilities['platformName']
+            platform_name = self._current_application(
+            ).capabilities['platformName']
         except Exception as e:
             raise e
         return platform_name.lower()

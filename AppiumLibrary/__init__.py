@@ -4,6 +4,7 @@ import os
 from AppiumLibrary.keywords import *
 from AppiumLibrary.version import VERSION
 from AppiumLibrary.utils.selfhealing import SelfHealing
+
 __version__ = VERSION
 
 
@@ -80,8 +81,7 @@ class AppiumLibrary(
     ROBOT_LIBRARY_VERSION = VERSION
 
     def __init__(self, timeout=5, run_on_failure='Capture Page Screenshot', sleep_between_wait_loop=0.2,
-                 self_healing='disabled'):
-
+                 self_healing=False, update_healed_locator=False, similarity_percentage=0.93, healing_strategy='xpath'):
         """AppiumLibrary can be imported with optional arguments.
 
         ``timeout`` is the default timeout used to wait for all waiting actions.
@@ -94,7 +94,7 @@ class AppiumLibrary(
         Using the value `No Operation` will disable this feature altogether. See
         `Register Keyword To Run On Failure` keyword for more information about this
         functionality.
-        
+
         ``sleep_between_wait_loop`` is the default sleep used to wait between loop in all wait until keywords
 
         Examples:
@@ -109,5 +109,5 @@ class AppiumLibrary(
         self.set_appium_timeout(timeout)
         self.register_keyword_to_run_on_failure(run_on_failure)
         self.set_sleep_between_wait_loop(sleep_between_wait_loop)
-        self.set_appium_self_healing(self_healing)
+        self.set_appium_self_healing(self_healing, update_healed_locator, similarity_percentage, healing_strategy)
 
