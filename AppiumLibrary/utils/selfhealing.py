@@ -9,6 +9,7 @@ from difflib import SequenceMatcher
 from AppiumLibrary.locators.elementfinder import ElementFinder
 import re
 import os
+from openai import OpenAI
 
 
 class SelfHealing:
@@ -33,12 +34,13 @@ class SelfHealing:
                 return True
         return False
 
-    def __init__(self, host='localhost', port=27017, update_healed_locator=False, similarity_percentage=0.93, healing_strategy='xpath'):
+    def __init__(self, host='localhost', port=27017, update_healed_locator=False, similarity_percentage=0.93, healing_strategy='xpath', heal_with_llm=True):
         self.database = None
         self.collection = None
         self.update_healed_locator = update_healed_locator
         self.similarity_percentage = similarity_percentage
         self.healing_strategy = healing_strategy
+        self.heal_with_llm = heal_with_llm
         try:
             self.client = MongoClient(
                 host=host,
@@ -304,8 +306,34 @@ class SelfHealing:
                 highest_similarity = similarity
 
         return most_similar_object, highest_similarity
+    
+    def apply_self_healing_by_llm(self, application, locator):
+        logging.info("Attempting Healing Locator Using LLM...")
+        elements_in_page = self.restructure_json(json.loads(self.xml_to_json(application.page_source)),
+                                                 application.current_activity)
+        client = OpenAI()
+        completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": f"You are a helpful assistant. \
+                                                your task is to analyze the provided data and return the most similar locator to the failed locator. \
+                                                You have to return only the locator as a string using {self.healing_strategy}, do not return any other text or code or block."},
+                {
+                    "role": "user",
+                    "content": f"Failed Locator is: {locator} and Elements in Page are: {elements_in_page}"
+                }
+            ]
+        )
+        logging.info(completion.choices[0].message.content)
+        return completion.choices[0].message.content
 
     def apply_self_healing(self, application, variable_name, locator, window_size):
+        if self.heal_with_llm:
+            return self.apply_self_healing_by_llm(application, locator)
+        else:
+            return self.apply_self_healing_similarity(application, variable_name, locator, window_size)
+                
+    def apply_self_healing_similarity(self, application, variable_name, locator, window_size):
         logging.info("Attempting Healing Locator...")
         elements_in_page = self.restructure_json(json.loads(self.xml_to_json(application.page_source)),
                                                  application.current_activity)
