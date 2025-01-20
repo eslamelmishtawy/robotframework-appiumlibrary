@@ -26,17 +26,8 @@ class SelfHealing:
     or DOM structure.
     """
 
-    def check_if_locator_with_identifier(self, locator):
-        ef = ElementFinder()
-        identifiers = [a_key + '=' for a_key in ef._strategies.keys()]
-        for identifier in identifiers:
-            if str(locator).startswith(identifier):
-                return True
-        return False
-
-    def __init__(self, host='localhost', port=27017, update_healed_locator=False, similarity_percentage=0.93, healing_strategy='xpath', heal_with_llm=True):
-        self.database = None
-        self.collection = None
+    def __init__(self, host='localhost', port=27017, update_healed_locator=False, similarity_percentage=0.93,
+                 healing_strategy='xpath', heal_with_llm=False):
         self.update_healed_locator = update_healed_locator
         self.similarity_percentage = similarity_percentage
         self.healing_strategy = healing_strategy
@@ -45,12 +36,13 @@ class SelfHealing:
             self.client = MongoClient(
                 host=host,
                 port=port,
-                username="admin",
-                password="adminpassword"
+                # username="admin",
+                # password="adminpassword"
             )
             logging.info("Connected to MongoDB!")
             self.database = self.client["ROBOT_ELEMENTS"]
-            self.collection = self.database["elements"]
+            self.collection = None
+            self.app_package = None
 
         except errors.ServerSelectionTimeoutError as e:
             logging.error(f"MongoDB connection timed out: {e}")
@@ -61,13 +53,25 @@ class SelfHealing:
         # except Exception as e:
         #     logging.error("An unexpected error occurreddddd:", e)
 
-    def add_locator_to_database(self, elements, locator, locator_variable_name, current_activity, old_locator=None):
+    def check_if_locator_with_identifier(self, locator):
+        ef = ElementFinder()
+        identifiers = [a_key + '=' for a_key in ef._strategies.keys()]
+        for identifier in identifiers:
+            if str(locator).startswith(identifier):
+                return True
+        return False
+
+    def add_locator_to_database(self, elements, locator, locator_variable_name, current_activity, old_locator=None,
+                                app_package=None):
         """Adds a found element and its associated metadata to the database.
             @param elements: Element Value
             @param locator: Locator Value
             @param locator_variable_name: Variable Name of Locator
             @param current_activity: Current App Activity running on
+            @param old_locator: The Old locator value before self-healing to be updated
         """
+        self.app_package = app_package
+        self.collection = self.database[self.app_package]
         existing_name = None
         existing_locator = None
         try:
@@ -134,38 +138,35 @@ class SelfHealing:
                         if old_locator and old_locator != locator:
                             self.update_healed_locator_variable(old_locator_value=str(old_locator),
                                                                 new_locator_value=str(locator))
-                    else:
-                        logging.warning("Locators are changed but not updated in Files."
-                                        " Please set update_healed_locator=${True} for auto update xxxx"
-                                        f"Locator is : {locator} and old locator is: {old_locator}")
+
                     return
                 result = self.collection.insert_one(item)
-                if self.update_healed_locator:
-                    if old_locator and old_locator != locator:
+                if old_locator and old_locator != locator:
+                    if self.update_healed_locator:
                         self.update_healed_locator_variable(old_locator_value=str(old_locator),
                                                             new_locator_value=str(locator))
-                else:
-                    if old_locator and old_locator != locator:
+                    else:
                         logging.warning("Locators are changed but not updated in Files."
                                         " Please set update_healed_locator=${True} for auto update")
                 logging.info(f"Document inserted successfully with ID: {result.inserted_id}")
 
-            if self.update_healed_locator:
-                logging.warning("Updating locators in Robot Files")
-                if old_locator and old_locator != locator:
-                    logging.warning(
-                        "Updating locators in Robot Files Reallyyyy")
+            if old_locator and old_locator != locator:
+                if self.update_healed_locator:
+                    logging.warning("Updating locators in Robot Files")
                     self.update_healed_locator_variable(old_locator_value=str(old_locator),
                                                         new_locator_value=str(locator))
-            else:
-                logging.warning("Update healed locator switched off")
+                else:
+                    logging.warning("Update healed locator switched off")
         except errors.ConnectionFailure as e:
             logging.error(f"MongoDB not connected due to error: {e}")
         except Exception as e:
             logging.error(
                 f"An unexpected error occurred while connecting to MongoDB due to error xxx : {e}")
 
-    def select_locator_from_database(self, locator_variable_name, locator):
+    def select_locator_from_database(self, locator_variable_name, locator, app_package):
+        self.app_package = app_package
+        self.collection = self.database[self.app_package]
+        print(f"self.collection is: {self.collection}")
         try:
             print(f"Locator Var Name are Name: {locator_variable_name} and locator: {locator}")
             existing_name = self.collection.find_one(
@@ -306,7 +307,7 @@ class SelfHealing:
                 highest_similarity = similarity
 
         return most_similar_object, highest_similarity
-    
+
     def apply_self_healing_by_llm(self, application, locator):
         logging.info("Attempting Healing Locator Using LLM...")
         elements_in_page = self.restructure_json(json.loads(self.xml_to_json(application.page_source)),
@@ -327,18 +328,19 @@ class SelfHealing:
         logging.info(completion.choices[0].message.content)
         return completion.choices[0].message.content
 
-    def apply_self_healing(self, application, variable_name, locator, window_size):
+    def apply_self_healing(self, application, variable_name, locator, window_size, app_package):
+        print("Attempting Self Healing ....")
         if self.heal_with_llm:
             return self.apply_self_healing_by_llm(application, locator)
         else:
-            return self.apply_self_healing_similarity(application, variable_name, locator, window_size)
-                
-    def apply_self_healing_similarity(self, application, variable_name, locator, window_size):
+            return self.apply_self_healing_similarity(application, variable_name, locator, window_size, app_package)
+
+    def apply_self_healing_similarity(self, application, variable_name, locator, window_size, app_package):
         logging.info("Attempting Healing Locator...")
         elements_in_page = self.restructure_json(json.loads(self.xml_to_json(application.page_source)),
                                                  application.current_activity)
         healing_candidate = self.select_locator_from_database(
-            variable_name, locator)
+            variable_name, locator, app_package)
         logging.info(f"Healing Candidate From Database: {healing_candidate}")
         if healing_candidate:
             healed_locator = self.find_closest_locator(
@@ -379,7 +381,7 @@ class SelfHealing:
     # New Similarity Method
 
     def calculate_relative_bounds(self, bounds: Tuple[int, int, int, int], screen_size: Tuple[int, int]) -> Tuple[
-            float, float, float, float]:
+        float, float, float, float]:
         """
         Calculate relative bounds based on screen size.
         :param bounds: A tuple (x, y, width, height).
@@ -465,7 +467,7 @@ class SelfHealing:
                 all_similarity_att.append(attribute_similarity)
 
                 overall_similarity = (
-                    bounds_similarity + attribute_similarity) / 2
+                                             bounds_similarity + attribute_similarity) / 2
 
                 if overall_similarity > highest_similarity and overall_similarity >= self.similarity_percentage:
                     highest_similarity = overall_similarity
