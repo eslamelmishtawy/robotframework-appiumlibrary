@@ -9,6 +9,7 @@ from unicodedata import normalize
 from selenium.webdriver.remote.webelement import WebElement
 from datetime import datetime
 import json
+import time
 
 try:
     basestring  # attempt to evaluate basestring
@@ -645,18 +646,26 @@ class _ElementKeywords(KeywordGroup):
         except Exception as e:
             raise e
 
-    def _element_find(self, locator, first_only, required, tag=None, self_healing=True):
+    def _element_find(self, locator, first_only, required, tag=None, self_healing=True,
+                      timeout=None, first_time_called=0):
         application = self._current_application()
+        app_package = self._current_application().current_package
         window_size = self._current_application().get_window_size()
+        if timeout is None:
+            timeout = self._timeout_in_secs
+        print(f"TimeOut value issss : {timeout}")
+        maxtime = first_time_called + timeout
         elements = None
         locator_variable_name = next((name for name, val in self._bi.get_variables().items() if val == locator), None)
         if isstr(locator):
             _locator = locator
             elements = self._element_finder.find(application, _locator, tag)
             if required and len(elements) == 0:
-                if self.healing_client and self_healing:
+                print(f"first_time_called is: {time.time() - maxtime}")
+                if self.healing_client and self_healing and time.time() > maxtime:
                     new_healed_locator = self.healing_client.apply_self_healing(application, locator_variable_name,
-                                                                                locator, window_size)
+                                                                                locator, window_size,
+                                                                                app_package=app_package)
                     if new_healed_locator:
                         self._info(
                             f"found element: {self._element_finder.find(application, new_healed_locator, tag)[0]}")
@@ -665,7 +674,7 @@ class _ElementKeywords(KeywordGroup):
                             self.healing_client.add_locator_to_database(found_healed_element, new_healed_locator,
                                                                         locator_variable_name,
                                                                         application.current_activity,
-                                                                        old_locator=locator)
+                                                                        old_locator=locator, app_package=app_package)
                         return found_healed_element
                     else:
                         raise ValueError("Element locator '" + locator + "' did not match any elements.")
@@ -673,9 +682,11 @@ class _ElementKeywords(KeywordGroup):
                     raise ValueError("Element locator '" + locator + "' did not match any elements.")
             if first_only:
                 if len(elements) == 0:
-                    if self.healing_client and self_healing:
+                    print(f"first_time_called is: {time.time() - maxtime}")
+                    if self.healing_client and self_healing and time.time() > maxtime:
                         new_healed_locator = self.healing_client.apply_self_healing(application, locator_variable_name,
-                                                                                    locator, window_size)
+                                                                                    locator, window_size,
+                                                                                    app_package=app_package)
                         if new_healed_locator:
                             self._info(
                                 f"found element: {self._element_finder.find(application, new_healed_locator, tag)}")
@@ -684,14 +695,15 @@ class _ElementKeywords(KeywordGroup):
                                 self.healing_client.add_locator_to_database(found_healed_element, new_healed_locator,
                                                                             locator_variable_name,
                                                                             application.current_activity,
-                                                                            old_locator=locator)
+                                                                            old_locator=locator,
+                                                                            app_package=app_package)
 
                             return found_healed_element
                     return None
-                if self.healing_client:
+                if self.healing_client and len(elements) > 0:
                     self.healing_client.add_locator_to_database(elements[0], locator,
                                                                 locator_variable_name,
-                                                                application.current_activity)
+                                                                application.current_activity, app_package=app_package)
                 return elements[0]
         elif isinstance(locator, WebElement):
             if first_only:
@@ -702,7 +714,7 @@ class _ElementKeywords(KeywordGroup):
         # ... or raise locator/element specific error if required
         if self.healing_client:
             self.healing_client.add_locator_to_database(elements[0], locator, locator_variable_name,
-                                                        application.current_activity)
+                                                        application.current_activity, app_package=app_package)
         return elements
 
     def _element_find_by_text(self, text, exact_match=False, self_healing=True):
@@ -741,8 +753,9 @@ class _ElementKeywords(KeywordGroup):
         element_present = False if not elements else True
         return element_present
 
-    def _is_visible(self, locator, self_healing=True):
-        element = self._element_find(locator, True, False, self_healing=self_healing)
+    def _is_visible(self, locator, self_healing=True, timeout=0, first_time_called=0):
+        element = self._element_find(locator, True, False, self_healing=self_healing,
+                                     timeout=timeout, first_time_called=first_time_called)
         if element is not None:
             return element.is_displayed()
         return None
