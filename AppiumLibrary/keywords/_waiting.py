@@ -31,6 +31,7 @@ class _WaitingKeywords(KeywordGroup):
         def check_visibility():
             visible = self._is_visible(locator, self_healing=self_healing, timeout=timeout,
                                        first_time_called=first_time_called)
+            print(f"visible in check_visibility: {visible}")
             if visible:
                 return
             elif visible is None:
@@ -150,24 +151,6 @@ class _WaitingKeywords(KeywordGroup):
             return None if function(*args) else error
 
         self._wait_until_no_error(timeout, wait_func)
-
-    # def _wait_until_no_error(self, timeout, wait_func, *args):
-    #     timeout = robot.utils.timestr_to_secs(timeout) if timeout is not None else self._timeout_in_secs
-    #     maxtime = time.time() + timeout
-    #     while True:
-    #         timeout_error = wait_func(*args)
-    #         if not timeout_error:
-    #             return
-    #         if time.time() > maxtime:
-    #             self.log_source()
-    #             if 'check_visibility' in str(wait_func):
-    #                 return_value = wait_func(*args, keyword_timeout_reached=True)
-    #                 print(f"Return value is: {return_value}")
-    #                 if return_value:
-    #                     raise AssertionError(timeout_error)
-    #                 else:
-    #                     return
-    #         time.sleep(self._sleep_between_wait)
 
     def _wait_until_no_error(self, timeout, wait_func, *args):
         timeout = robot.utils.timestr_to_secs(timeout) if timeout is not None else self._timeout_in_secs
