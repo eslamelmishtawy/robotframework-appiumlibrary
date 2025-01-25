@@ -394,7 +394,7 @@ class SelfHealing:
         return x / screen_width, y / screen_height, bounds[2] / screen_width, bounds[3] / screen_height
 
     def calculate_bounds_similarity(self, source_bounds: Tuple[float, float, float, float],
-                                    target_bounds: Tuple[float, float, float, float]) -> float:
+                                    target_bounds: Tuple[float, float, float, float], element_text) -> float:
         """
         Calculate the similarity between two sets of relative bounds.
         :param source_bounds: Relative bounds (rel_x, rel_y, rel_width, rel_height).
@@ -405,7 +405,7 @@ class SelfHealing:
                        for source, target in zip(source_bounds, target_bounds)]
         print(f"Source Bounds: {source_bounds}")
         print(f"Target Bounds: {target_bounds}")
-        print(f"Bounds Similarity is: {1 - sum(differences) / len(differences)}")
+        print(f"Bounds Similarity is: {1 - sum(differences) / len(differences)} and text is: {element_text}")
         return 1 - sum(differences) / len(differences)
 
     def calculate_attribute_similarity(self, source_attributes: Dict[str, str],
@@ -418,6 +418,14 @@ class SelfHealing:
         """
         total_similarity = 0
         count = 0
+        print(f"source_attributes['text'] is: {source_attributes['text']}")
+        print(f"target_attributes['text'] is: {target_attributes['text']}")
+        print(f"Source attributes are: {source_attributes.keys()}")
+        print(f"Target attributes are: {target_attributes.keys()}")
+        bounds_source_attribute = source_attributes['bounds'] if 'bounds' in source_attributes.keys() else None
+        bounds_target_attribute = target_attributes['bounds'] if 'bounds' in target_attributes.keys() else None
+        if 'bounds' in source_attributes.keys(): del source_attributes['bounds']
+        if 'bounds' in target_attributes.keys(): del target_attributes['bounds']
 
         for key in source_attributes.keys() & target_attributes.keys():
             if source_attributes[key] is not None and target_attributes[key] is not None:
@@ -425,6 +433,9 @@ class SelfHealing:
                     None, source_attributes[key], target_attributes[key])
                 total_similarity += matcher.ratio()
                 count += 1
+        print(f"Attr similarity is: {total_similarity / count if count > 0 else 0}")
+        if bounds_source_attribute: source_attributes.update({'bounds': bounds_source_attribute})
+        if bounds_target_attribute: target_attributes.update({'bounds': bounds_target_attribute})
 
         return total_similarity / count if count > 0 else 0
 
@@ -450,6 +461,7 @@ class SelfHealing:
         highest_similarity = 0
         bounds_all_similarity = []
         all_similarity_att = []
+        all_over_all_similarity = []
         for candidate in candidate_locators:
 
             if 'bounds' in candidate['attributes'].keys():
@@ -458,7 +470,7 @@ class SelfHealing:
                 candidate_bounds = self.calculate_relative_bounds(
                     candidate_bounds_tuple, screen_size)
                 bounds_similarity = self.calculate_bounds_similarity(
-                    target_bounds, candidate_bounds)
+                    target_bounds, candidate_bounds, candidate['attributes']['text'])
                 bounds_all_similarity.append(bounds_similarity)
 
                 attribute_similarity = self.calculate_attribute_similarity(
@@ -466,8 +478,8 @@ class SelfHealing:
                 )
                 all_similarity_att.append(attribute_similarity)
 
-                overall_similarity = (
-                                             bounds_similarity + attribute_similarity) / 2
+                overall_similarity = (bounds_similarity + attribute_similarity) / 2
+                all_over_all_similarity.append(overall_similarity)
 
                 if overall_similarity > highest_similarity and overall_similarity >= self.similarity_percentage:
                     highest_similarity = overall_similarity
@@ -476,8 +488,27 @@ class SelfHealing:
                     print("Got Element by Bounds Similarity")
                     best_match = candidate
         print(f"all_bounds_similarity: {bounds_all_similarity} and max is {max(bounds_all_similarity)} "
-              f"and max attr is: {max(all_similarity_att)} and best match is: {best_match}")
+              f"and max attr is: {max(all_similarity_att)} and best match is: {best_match} "
+              f"and overall_similarity is : {all_over_all_similarity} and max is {max(all_over_all_similarity)}")
+        highest_similar_element_attribute = self.filter_locator_attributes(candidate_locators
+                                                                           [all_similarity_att.
+                                                                           index(max(all_similarity_att)) + 1]
+                                                                           ['attributes'])
+
+        if not best_match:
+            logging.warning(f"Self-Healing Algorithm couldn't find element with similarity percentage:"
+                            f" {self.similarity_percentage}. However, the highest similar element attributes are: "
+                            f"{highest_similar_element_attribute}, "
+                            f"decrease similarity percentage to: {round(max(all_similarity_att), 2)} "
+                            f"for applying self-Healing to this element")
         return best_match
+
+    def filter_locator_attributes(self, attributes):
+        filtered_attributes = {}
+        for key in ['package', 'text', 'resource-id', 'class']:
+            if key in attributes and attributes[key].strip():
+                filtered_attributes[key] = attributes[key]
+        return filtered_attributes
 
     def convert_bounds_str_to_tuple(self, bounds_str):
         """
