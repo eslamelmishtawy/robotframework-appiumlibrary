@@ -326,8 +326,11 @@ class SelfHealing:
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": f"You are a helpful assistant. \
-                                                your task is to analyze the provided data and return the most similar locator to the failed locator. \
-                                                You have to return only the locator as a string using {self.healing_strategy}, do not return any other text or code or block."},
+                                                your task is to analyze the provided data and return the most similar"
+                                              f" locator to the failed locator. \
+                                                You have to return only the locator as a string using"
+                                              f" {self.healing_strategy}, do not return any other text "
+                                              f"or code or block."},
                 {
                     "role": "user",
                     "content": f"Failed Locator is: {locator} and Elements in Page are: {elements_in_page}"
@@ -512,7 +515,8 @@ class SelfHealing:
 
         if not best_match:
             logging.warning(
-                f"Self-Healing Algorithm couldn't find element similar to : {target_locator['attributes']} with similarity percentage:"
+                f"Self-Healing Algorithm couldn't find element similar to : {target_locator['attributes']} "
+                f"with similarity percentage:"
                 f" {self.similarity_percentage}. However, the highest similar element attributes are: "
                 f"{highest_similar_element_attribute}, "
                 f"decrease similarity percentage to: {round(max(all_similarity_att), 2)} "
