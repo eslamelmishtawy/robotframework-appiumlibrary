@@ -176,15 +176,24 @@ class SelfHealing:
             if existing_name:
                 return {'tag': existing_name['tag'], 'attributes': existing_name['attributes']}
             else:
-                if existing_locator:
-                    return {'tag': existing_locator['tag'], 'attributes': existing_locator['attributes']}
-                logging.warning("Couldn't find any related elements")
-                return None
+                return self.handle_locator_with_no_variables()
+            if existing_locator:
+                return {'tag': existing_locator['tag'], 'attributes': existing_locator['attributes']}
+
+                # logging.warning("Self-Healing Algorithm Couldn't find any related elements")
         except errors.ConnectionFailure as e:
             logging.error(f"MongoDB not connected due to error: {e}")
         except Exception as e:
             logging.error(
                 f"An unexpected error occurred while connecting to MongoDB due to error : {e}")
+
+    def handle_locator_with_no_variables(self):
+        non_var_locators_list = []
+        non_variable_locators = self.collection.find({"name": None})
+        for non_variable_locator in non_variable_locators:
+            non_var_locators_list.append({'tag': non_variable_locator['tag'],
+                                          'attributes': non_variable_locator['attributes']})
+        return non_var_locators_list
 
     def parse_element(self, element):
         """Recursively parse XML elements into dictionary objects with nested children."""
@@ -342,17 +351,23 @@ class SelfHealing:
         healing_candidate = self.select_locator_from_database(
             variable_name, locator, app_package)
         logging.info(f"Healing Candidate From Database: {healing_candidate}")
-        if healing_candidate:
-            healed_locator = self.find_closest_locator(
-                healing_candidate, elements_in_page, window_size)
-            # logging.info(f"Similarity Score between failed element and most similar element is: {similarity_score}")
-            # TODO: new xpath how it will be constructed???
-            if healed_locator:
-                print(f"Attributes in healed locators are: {healed_locator}")
-                print(f"Attributes in healed locators are: {healed_locator['attributes'].values()}")
-                return self.locator_reconstruction(application, self.healing_strategy, healed_locator)
-                # return f"//{healed_locator['tag']}[@bounds='{healed_locator['attributes']['bounds']}' and @text='{healed_locator['attributes']['text']}']"
-        logging.info("Could not apply self healing, No Element matching found")
+        if isinstance(healing_candidate, list):
+            for a_healing_candidate in healing_candidate:
+                if a_healing_candidate:
+                    healed_locator = self.find_closest_locator(
+                        a_healing_candidate, elements_in_page, window_size)
+                    if healed_locator:
+                        print(f"Attributes in healed locators are: {healed_locator['attributes'].values()}")
+                        return self.locator_reconstruction(application, self.healing_strategy, healed_locator)
+                    logging.info("Could not apply self healing, No Element matching found")
+        else:
+            if healing_candidate:
+                healed_locator = self.find_closest_locator(
+                    healing_candidate, elements_in_page, window_size)
+                if healed_locator:
+                    print(f"Attributes in healed locators are: {healed_locator['attributes'].values()}")
+                    return self.locator_reconstruction(application, self.healing_strategy, healed_locator)
+            logging.info("Could not apply self healing, No Element matching found")
         return None
 
     def update_healed_locator_variable(self, old_locator_value, new_locator_value, file_extensions=['.robot']):
@@ -443,8 +458,7 @@ class SelfHealing:
             self,
             target_locator: Dict[str, any],
             candidate_locators: List[Dict[str, any]],
-            screen_size: Tuple[int, int],
-            similarity_threshold: float = 0.93
+            screen_size: Tuple[int, int]
     ) -> Dict[str, any]:
         """
         Find the closest locator based on bounds and attributes similarity.
@@ -465,6 +479,7 @@ class SelfHealing:
         for candidate in candidate_locators:
 
             if 'bounds' in candidate['attributes'].keys():
+                # handle bounds in iOS
                 candidate_bounds_tuple = self.convert_bounds_str_to_tuple(
                     candidate['attributes']['bounds'])
                 candidate_bounds = self.calculate_relative_bounds(
@@ -496,11 +511,12 @@ class SelfHealing:
                                                                            ['attributes'])
 
         if not best_match:
-            logging.warning(f"Self-Healing Algorithm couldn't find element with similarity percentage:"
-                            f" {self.similarity_percentage}. However, the highest similar element attributes are: "
-                            f"{highest_similar_element_attribute}, "
-                            f"decrease similarity percentage to: {round(max(all_similarity_att), 2)} "
-                            f"for applying self-Healing to this element")
+            logging.warning(
+                f"Self-Healing Algorithm couldn't find element similar to : {target_locator['attributes']} with similarity percentage:"
+                f" {self.similarity_percentage}. However, the highest similar element attributes are: "
+                f"{highest_similar_element_attribute}, "
+                f"decrease similarity percentage to: {round(max(all_similarity_att), 2)} "
+                f"for applying self-Healing to this element")
         return best_match
 
     def filter_locator_attributes(self, attributes):
