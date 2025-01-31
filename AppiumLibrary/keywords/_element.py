@@ -653,7 +653,6 @@ class _ElementKeywords(KeywordGroup):
         window_size = self._current_application().get_window_size()
         if timeout is None:
             timeout = self._timeout_in_secs
-        print(f"TimeOut value issss : {timeout}")
         maxtime = first_time_called + timeout
         elements = None
         locator_variable_name = next((name for name, val in self._bi.get_variables().items() if val == locator), None)
