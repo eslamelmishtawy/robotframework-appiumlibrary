@@ -658,12 +658,11 @@ class _ElementKeywords(KeywordGroup):
             app_package = self._element_finder.find(application, '//XCUIElementTypeApplication', tag)[0].get_attribute('name')
             # if app_element and 'name' in app_element.attrs:
             #     app_package = app_element['name']
-        
+
         self._info(f"app_package is: {app_package}")
         if timeout is None:
             timeout = self._timeout_in_secs
-        print(f"TimeOut value issss: {timeout}")
-        maxtime = first_time_called + float(timeout)
+        maxtime = first_time_called + timeout
         elements = None
         locator_variable_name = next((name for name, val in self._bi.get_variables().items() if val == locator), None)
         if isstr(locator):
@@ -683,6 +682,7 @@ class _ElementKeywords(KeywordGroup):
                         if found_healed_element:
                             self.healing_client.add_locator_to_database(found_healed_element, new_healed_locator,
                                                                         locator_variable_name,
+                                                                        application.current_activity,
                                                                         old_locator=locator, app_package=app_package)
                         return found_healed_element
                     else:
@@ -704,6 +704,7 @@ class _ElementKeywords(KeywordGroup):
                             if found_healed_element:
                                 self.healing_client.add_locator_to_database(found_healed_element, new_healed_locator,
                                                                             locator_variable_name,
+                                                                            application.current_activity,
                                                                             old_locator=locator,
                                                                             app_package=app_package)
 
