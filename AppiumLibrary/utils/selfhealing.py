@@ -32,6 +32,7 @@ class SelfHealing:
         self.similarity_percentage = similarity_percentage
         self.healing_strategy = healing_strategy
         self.heal_with_llm = heal_with_llm
+        self.platform = None
         try:
             self.client = MongoClient(
                 host=host,
@@ -53,6 +54,10 @@ class SelfHealing:
         # except Exception as e:
         #     logging.error("An unexpected error occurreddddd:", e)
 
+    def set_platform(self, platform):
+        self.platform = platform
+        logging.info(f"Platform is set with value: {self.platform}")
+    
     def check_if_locator_with_identifier(self, locator):
         ef = ElementFinder()
         identifiers = [a_key + '=' for a_key in ef._strategies.keys()]
@@ -61,37 +66,51 @@ class SelfHealing:
                 return True
         return False
 
-    def add_locator_to_database(self, elements, locator, locator_variable_name, current_activity, old_locator=None,
+    def add_locator_to_database(self, elements, locator, locator_variable_name, old_locator=None,
                                 app_package=None):
         """Adds a found element and its associated metadata to the database.
             @param elements: Element Value
             @param locator: Locator Value
             @param locator_variable_name: Variable Name of Locator
-            @param current_activity: Current App Activity running on
             @param old_locator: The Old locator value before self-healing to be updated
         """
         self.app_package = app_package
         self.collection = self.database[self.app_package]
         existing_name = None
         existing_locator = None
+        
         try:
-
-            item = {
-                "name": locator_variable_name,
-                "locator": locator,
-                "activity": current_activity,
-                "tag": elements.get_attribute("classname"),
-                "attributes": {
-                    "text": elements.text,
-                    "package": elements.get_attribute("package"),
-                    "resource-id": elements.get_attribute("resource-id"),
-                    "bounds": f"{elements.location}, {elements.size}",
-                    # "bounds": f"{elements.get_attribute('bounds')}",
-                    "content-desc": elements.get_attribute("content-desc"),
-                },
-                "created-at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "last-time-passed": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            }
+            if self.platform == 'ios':
+                item = {
+                    "name": locator_variable_name,
+                    "locator": locator,
+                    "tag": elements.get_attribute("type"),
+                    "attributes": {
+                        "text": elements.get_attribute('label'),
+                        "package": self.app_package,
+                        "name": elements.get_attribute("name"),
+                        "bounds": f"{elements.location}, {elements.size}",
+                        # "bounds": f"{elements.get_attribute('bounds')}"
+                    },
+                    "created-at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "last-time-passed": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                }
+            elif self.platform == 'android':
+                item = {
+                    "name": locator_variable_name,
+                    "locator": locator,
+                    "tag": elements.get_attribute("classname"),
+                    "attributes": {
+                        "text": elements.text,
+                        "package": self.app_package,
+                        "resource-id": elements.get_attribute("resource-id"),
+                        "bounds": f"{elements.location}, {elements.size}",
+                        # "bounds": f"{elements.get_attribute('bounds')}",
+                        "content-desc": elements.get_attribute("content-desc"),
+                    },
+                    "created-at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "last-time-passed": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                }
             if locator_variable_name:
                 existing_name = self.collection.find_one(
                     {"name": locator_variable_name})
@@ -216,7 +235,7 @@ class SelfHealing:
         parsed_data = self.parse_element(root)
         return json.dumps(parsed_data, indent=4)
 
-    def restructure_json(self, data, current_activity, keys_to_keep=None):
+    def restructure_json(self, data, keys_to_keep=None):
         """Restructure JSON to ensure the tag and attributes are at the top level."""
         result = []
         if keys_to_keep is None:
@@ -229,7 +248,6 @@ class SelfHealing:
                     filtered_attributes = {k: v for k, v in attributes.items()}
                     flat_structure = {
                         "tag": element["tag"],
-                        "activity": current_activity,
                         "attributes": filtered_attributes
                     }
                     result.append(flat_structure)
@@ -257,7 +275,18 @@ class SelfHealing:
 
         def calculate_similarity(source_element_object, target_element_object):
             # Weight distribution
-            weights = {
+            weights = {}
+            if self.platform == 'ios':
+                weights = {
+                "tag": 20,  # 20% for tag similarity
+                "attributes": {
+                    "text": 15,  # 15% for text attribute
+                    "name": 25,  # 25% for resource ID attribute
+                    "bounds": 20,  # 20% for bounds attribute
+                }
+            }
+            elif self.platform == 'android':
+                weights = {
                 "tag": 20,  # 20% for tag similarity
                 "attributes": {
                     "text": 15,  # 15% for text attribute
@@ -319,8 +348,7 @@ class SelfHealing:
 
     def apply_self_healing_by_llm(self, application, locator):
         logging.info("Attempting Healing Locator Using LLM...")
-        elements_in_page = self.restructure_json(json.loads(self.xml_to_json(application.page_source)),
-                                                 application.current_activity)
+        elements_in_page = self.restructure_json(json.loads(self.xml_to_json(application.page_source)))
         client = OpenAI()
         completion = client.chat.completions.create(
             model="gpt-4o-mini",
@@ -349,8 +377,7 @@ class SelfHealing:
 
     def apply_self_healing_similarity(self, application, variable_name, locator, window_size, app_package):
         logging.info("Attempting Healing Locator...")
-        elements_in_page = self.restructure_json(json.loads(self.xml_to_json(application.page_source)),
-                                                 application.current_activity)
+        elements_in_page = self.restructure_json(json.loads(self.xml_to_json(application.page_source)))
         healing_candidate = self.select_locator_from_database(
             variable_name, locator, app_package)
         logging.info(f"Healing Candidate From Database: {healing_candidate}")
@@ -457,6 +484,15 @@ class SelfHealing:
 
         return total_similarity / count if count > 0 else 0
 
+    def format_bounds(self, coordinates):
+        """
+        Convert coordinate tuple to Android bounds format
+        Input: ([x1, y1], [x2, y2])
+        Output: "[x1,y1][x2,y2]"
+        """
+        start_point, end_point = coordinates
+        return f"[{start_point[0]},{start_point[1]}][{end_point[0]},{end_point[1]}]"
+    
     def find_closest_locator(
             self,
             target_locator: Dict[str, any],
@@ -472,6 +508,7 @@ class SelfHealing:
         """
         bounds_tuple = self.convert_bounds_str_to_tuple(
             target_locator['attributes']['bounds'])
+        
         target_bounds = self.calculate_relative_bounds(
             bounds_tuple, screen_size)
         best_match = None
@@ -480,7 +517,13 @@ class SelfHealing:
         all_similarity_att = []
         all_over_all_similarity = []
         for candidate in candidate_locators:
-
+            if self.platform == 'ios':
+                if 'x' in candidate['attributes'].keys():
+                    candidate['attributes']['bounds'] = [int(candidate['attributes']['x']), int(candidate['attributes']['y'])], [int(candidate['attributes']['x'])+int(candidate['attributes']['width']), int(candidate['attributes']['y'])+int(candidate['attributes']['height'])]
+                    candidate['attributes']['bounds'] = self.format_bounds(candidate['attributes']['bounds'])
+                    if 'label' in candidate['attributes'].keys():
+                        candidate['attributes']['text'] = candidate['attributes']['label']
+            
             if 'bounds' in candidate['attributes'].keys():
                 # handle bounds in iOS
                 candidate_bounds_tuple = self.convert_bounds_str_to_tuple(
@@ -525,7 +568,7 @@ class SelfHealing:
 
     def filter_locator_attributes(self, attributes):
         filtered_attributes = {}
-        for key in ['package', 'text', 'resource-id', 'class']:
+        for key in ['package', 'text', 'resource-id', 'class', 'name']:
             if key in attributes and attributes[key].strip():
                 filtered_attributes[key] = attributes[key]
         return filtered_attributes
@@ -559,11 +602,10 @@ class SelfHealing:
 
     def locator_reconstruction(self, application, strategy, element):
         logging.info(f"Reconstructing Locator with strategy: {strategy} and element: {element}")
-        platform = application.desired_capabilities['platformName'].lower()
-        logging.info(f"Platform is: {platform}")
+        logging.info(f"Platform is: {self.platform}")
 
         if strategy == 'accessibility_id':
-            strategy_key = f'accessibility_id_{platform}'
+            strategy_key = f'accessibility_id_{self.platform}'
         else:
             strategy_key = strategy
 
@@ -582,7 +624,7 @@ class SelfHealing:
             return f"name={element['attributes']['name']}"
 
         # Fallback to xpath if strategy not supported or attributes missing
-        if platform == 'ios':
+        if self.platform == 'ios':
             logging.info(f"Returning Locator with Xpath Strategy: {element['attributes']['bounds']}")
             return f"//{element['tag']}[@x='{element['attributes']['x']}'][@y='{element['attributes']['y']}'][@width='{element['attributes']['width']}'][@height='{element['attributes']['height']}']"
         else:  # android

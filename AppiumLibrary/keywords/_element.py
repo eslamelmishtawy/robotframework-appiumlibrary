@@ -649,12 +649,21 @@ class _ElementKeywords(KeywordGroup):
     def _element_find(self, locator, first_only, required, tag=None, self_healing=True,
                       timeout=None, first_time_called=0):
         application = self._current_application()
-        app_package = self._current_application().current_package
         window_size = self._current_application().get_window_size()
+        platform = application.desired_capabilities['platformName'].lower()
+        app_package = None
+        if platform == 'android':
+            app_package = self._current_application().current_package
+        if platform == 'ios':
+            app_package = self._element_finder.find(application, '//XCUIElementTypeApplication', tag)[0].get_attribute('name')
+            # if app_element and 'name' in app_element.attrs:
+            #     app_package = app_element['name']
+        
+        self._info(f"app_package is: {app_package}")
         if timeout is None:
             timeout = self._timeout_in_secs
-        print(f"TimeOut value issss : {timeout}")
-        maxtime = first_time_called + timeout
+        print(f"TimeOut value issss: {timeout}")
+        maxtime = first_time_called + float(timeout)
         elements = None
         locator_variable_name = next((name for name, val in self._bi.get_variables().items() if val == locator), None)
         if isstr(locator):
@@ -663,6 +672,7 @@ class _ElementKeywords(KeywordGroup):
             if required and len(elements) == 0:
                 print(f"first_time_called is: {time.time() - maxtime}")
                 if self.healing_client and self_healing and time.time() > maxtime:
+                    self.healing_client.set_platform(platform)
                     new_healed_locator = self.healing_client.apply_self_healing(application, locator_variable_name,
                                                                                 locator, window_size,
                                                                                 app_package=app_package)
@@ -673,7 +683,6 @@ class _ElementKeywords(KeywordGroup):
                         if found_healed_element:
                             self.healing_client.add_locator_to_database(found_healed_element, new_healed_locator,
                                                                         locator_variable_name,
-                                                                        application.current_activity,
                                                                         old_locator=locator, app_package=app_package)
                         return found_healed_element
                     else:
@@ -684,6 +693,7 @@ class _ElementKeywords(KeywordGroup):
                 if len(elements) == 0:
                     print(f"first_time_called is: {time.time() - maxtime}")
                     if self.healing_client and self_healing and time.time() > maxtime:
+                        self.healing_client.set_platform(platform)
                         new_healed_locator = self.healing_client.apply_self_healing(application, locator_variable_name,
                                                                                     locator, window_size,
                                                                                     app_package=app_package)
@@ -694,16 +704,15 @@ class _ElementKeywords(KeywordGroup):
                             if found_healed_element:
                                 self.healing_client.add_locator_to_database(found_healed_element, new_healed_locator,
                                                                             locator_variable_name,
-                                                                            application.current_activity,
                                                                             old_locator=locator,
                                                                             app_package=app_package)
 
                             return found_healed_element
                     return None
                 if self.healing_client and len(elements) > 0:
+                    self.healing_client.set_platform(platform)
                     self.healing_client.add_locator_to_database(elements[0], locator,
-                                                                locator_variable_name,
-                                                                application.current_activity, app_package=app_package)
+                                                                locator_variable_name, app_package=app_package)
                 return elements[0]
         elif isinstance(locator, WebElement):
             if first_only:
@@ -713,8 +722,8 @@ class _ElementKeywords(KeywordGroup):
         # do some other stuff here like deal with list of webelements
         # ... or raise locator/element specific error if required
         if self.healing_client:
-            self.healing_client.add_locator_to_database(elements[0], locator, locator_variable_name,
-                                                        application.current_activity, app_package=app_package)
+            self.healing_client.set_platform(platform)
+            self.healing_client.add_locator_to_database(elements[0], locator, locator_variable_name, app_package=app_package)
         return elements
 
     def _element_find_by_text(self, text, exact_match=False, self_healing=True):
