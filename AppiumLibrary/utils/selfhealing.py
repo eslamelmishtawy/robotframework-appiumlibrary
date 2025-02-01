@@ -412,13 +412,16 @@ class SelfHealing:
 
                 if any(file_name.endswith(ext) for ext in self.update_file_extensions):
                     file_path = os.path.join(root, file_name)
-
-                    with open(file_path, "r") as file:
-                        content = file.read()
+                    with open(file_path, "r", encoding="utf-8") as file:
+                        if not file_name.endswith('.json'):
+                            logging.info(f"File is not json: {file_name}")
+                            content = file.read()
+                        else:
+                            content = json.load(file)
                     if old_locator_value in content:
                         updated_content = re.sub(
                             re.escape(old_locator_value), new_locator_value, content)
-                        with open(file_path, "w") as file:
+                        with open(file_path, "w", encoding="utf-8") as file:
                             file.write(updated_content)
 
                         updated_files.append(file_path)
@@ -612,7 +615,7 @@ class SelfHealing:
             logging.info(f"Returning Locator with Name Strategy: {element['attributes']['name']}")
             return f"name={element['attributes']['name']}"
 
-        if platform == 'ios':
+        if self.platform == 'ios':
             logging.info(f"Returning Locator with Xpath Strategy: {element['attributes']['bounds']}")
             return f"//{element['tag']}[@x='{element['attributes']['x']}'][@y='{element['attributes']['y']}'][@width='{element['attributes']['width']}'][@height='{element['attributes']['height']}']"
         else:  # android
