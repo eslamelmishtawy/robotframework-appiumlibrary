@@ -68,8 +68,7 @@ class SelfHealing:
                 return True
         return False
 
-    def add_locator_to_database(self, elements, locator, locator_variable_name, old_locator=None,
-                                app_package=None):
+    def add_locator_to_database(self, elements, locator, locator_variable_name, old_locator=None, app_package=None):
         """Adds a found element and its associated metadata to the database.
             @param elements: Element Value
             @param locator: Locator Value
@@ -107,7 +106,6 @@ class SelfHealing:
                         "package": self.app_package,
                         "resource-id": elements.get_attribute("resource-id"),
                         "bounds": f"{elements.location}, {elements.size}",
-                        # "bounds": f"{elements.get_attribute('bounds')}",
                         "content-desc": elements.get_attribute("content-desc"),
                     },
                     "created-at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -116,7 +114,6 @@ class SelfHealing:
             if locator_variable_name:
                 existing_name = self.collection.find_one(
                     {"name": locator_variable_name})
-                print(f"existingName is: {existing_name}")
             else:
                 is_locator_with_identifier = self.check_if_locator_with_identifier(
                     locator)
@@ -130,15 +127,13 @@ class SelfHealing:
                         {"locator": locator})
 
             if existing_name:
-                logging.info(
-                    "Locator with same variable name exists in Database, Updating locator value...")
+                logging.info("Locator with same variable name exists in Database, Updating locator value...")
                 self.collection.update_one({"name": locator_variable_name},
                                            {"$set": {"locator": locator,
                                                      "last-time-passed": datetime.now().strftime(
                                                          "%Y-%m-%d %H:%M:%S")}})
             if existing_locator:
-                logging.info(
-                    "Locator with same locator criteria exists in Database, Updating locator value...")
+                logging.info("Locator with same locator criteria exists in Database, Updating locator value...")
                 self.collection.update_one({"locator": locator},
                                            {"$set": {
                                                "last-time-passed": datetime.now().strftime(
@@ -182,30 +177,27 @@ class SelfHealing:
         except errors.ConnectionFailure as e:
             logging.error(f"MongoDB not connected due to error: {e}")
         except Exception as e:
-            logging.error(
-                f"An unexpected error occurred while connecting to MongoDB due to error: {e}")
+            logging.error(f"An unexpected error occurred while connecting to MongoDB due to error: {e}")
 
     def select_locator_from_database(self, locator_variable_name, locator, app_package):
         self.app_package = app_package
         self.collection = self.database[self.app_package]
-        print(f"Current MongoDB Collection is: {self.collection}")
+        logging.info(f"Current MongoDB Collection is: {self.collection}")
         try:
             existing_name = self.collection.find_one(
                 {"name": locator_variable_name}) if locator_variable_name else None
             existing_locator = self.collection.find_one({"locator": locator})
-            print(f"Search Criteria are Name: {existing_name} and locator: {existing_locator}")
+            logging.info(f"Search Criteria are Name: {existing_name} and locator: {existing_locator}")
             if existing_name:
                 return {'tag': existing_name['tag'], 'attributes': existing_name['attributes']}
             else:
                 return self.handle_locator_with_no_variables()
-            if existing_locator:
-                return {'tag': existing_locator['tag'], 'attributes': existing_locator['attributes']}
 
         except errors.ConnectionFailure as e:
             logging.error(f"MongoDB not connected due to error: {e}")
         except Exception as e:
             logging.error(
-                f"An unexpected error occurred while connecting to MongoDB due to error : {e}")
+                f"An unexpected error occurred while selecting locator from MongoDB : {e}")
 
     def handle_locator_with_no_variables(self):
         non_var_locators_list = []
@@ -262,95 +254,10 @@ class SelfHealing:
         process_element(data)
         return result
 
-    def find_most_similar(self, obj1, obj_list):
-        """
-        Find the most similar object from a list based on the given object and calculate its similarity percentage.
-
-        Args:
-            obj1 (dict): The object to compare against the list.
-            obj_list (list): A list of objects to compare with.
-
-        Returns:
-            dict, float: The most similar object and its similarity percentage.
-        """
-
-        def calculate_similarity(source_element_object, target_element_object):
-            # Weight distribution
-            weights = {}
-            if self.platform == 'ios':
-                weights = {
-                "tag": 20,  # 20% for tag similarity
-                "attributes": {
-                    "text": 15,  # 15% for text attribute
-                    "name": 25,  # 25% for resource ID attribute
-                    "bounds": 20,  # 20% for bounds attribute
-                }
-            }
-            elif self.platform == 'android':
-                weights = {
-                "tag": 20,  # 20% for tag similarity
-                "attributes": {
-                    "text": 15,  # 15% for text attribute
-                    "resource-id": 25,  # 25% for resource ID attribute
-                    "bounds": 20,  # 20% for bounds attribute
-                    "content-desc": 20  # 20% for content description attribute
-                }
-            }
-
-            # Check for package mismatch
-            source_pkg = source_element_object.get("attributes", {}).get("package",
-                                                                         source_element_object.get(
-                                                                             "attributes", {})
-                                                                         .get("package", ""))
-            target_pkg = target_element_object.get("attributes", {}).get("package",
-                                                                         target_element_object.get(
-                                                                             "attributes", {})
-                                                                         .get("package", ""))
-            if source_pkg != target_pkg:
-                return 0.0  # No similarity if package mismatch
-
-            # Initialize similarity score
-            similarity = 0
-
-            # Compare tags
-            if source_element_object["tag"] == target_element_object["tag"]:
-                similarity += weights["tag"]  # Exact match
-            else:
-                similarity += 0  # Completely different tags
-
-            # Compare attributes
-            source_element_attributes = source_element_object.get(
-                "attributes", {})
-            target_element_attributes = target_element_object.get(
-                "attributes", {})
-            for key, weight in weights["attributes"].items():
-                source_value = source_element_attributes.get(key, "")
-                target_value = target_element_attributes.get(key, "")
-                if key == "bounds":
-                    # Consider bounds equivalence
-                    similarity += weight if str(
-                        source_value) == str(target_value) else 0
-                else:
-                    similarity += weight if source_value == target_value else 0
-
-            return similarity
-
-        # Find the most similar object
-        most_similar_object = None
-        highest_similarity = 0.0
-
-        for obj2 in obj_list:
-            similarity = calculate_similarity(obj1, obj2)
-            if similarity > highest_similarity:
-                most_similar_object = obj2
-                highest_similarity = similarity
-
-        return most_similar_object, highest_similarity
-
     def apply_self_healing_by_llm(self, application, locator):
         logging.info("Attempting Healing Locator Using LLM...")
         elements_in_page = self.restructure_json(json.loads(self.xml_to_json(application.page_source)))
-        client = OpenAI()
+        client = OpenAI(api_key=self.open_ai_key)
         completion = client.chat.completions.create(
             model=self.llm_model,
             messages=[
@@ -370,7 +277,7 @@ class SelfHealing:
         return completion.choices[0].message.content
 
     def apply_self_healing(self, application, variable_name, locator, window_size, app_package):
-        print("Attempting Self Healing ....")
+        logging.info("Attempting Self Healing ....")
         if self.heal_with_llm:
             return self.apply_self_healing_by_llm(application, locator)
         else:
@@ -388,16 +295,14 @@ class SelfHealing:
                     healed_locator = self.find_closest_locator(
                         a_healing_candidate, elements_in_page, window_size)
                     if healed_locator:
-                        print(f"Attributes in healed locators are: {healed_locator['attributes'].values()}")
-                        return self.locator_reconstruction(application, self.healing_strategy, healed_locator)
+                        return self.locator_reconstruction(self.healing_strategy, healed_locator)
                     logging.info("Could not apply self healing, No Element matching found")
         else:
             if healing_candidate:
                 healed_locator = self.find_closest_locator(
                     healing_candidate, elements_in_page, window_size)
                 if healed_locator:
-                    print(f"Attributes in healed locators are: {healed_locator['attributes'].values()}")
-                    return self.locator_reconstruction(application, self.healing_strategy, healed_locator)
+                    return self.locator_reconstruction(self.healing_strategy, healed_locator)
             logging.info("Could not apply self healing, No Element matching found")
         return None
 
@@ -414,7 +319,6 @@ class SelfHealing:
                     file_path = os.path.join(root, file_name)
                     with open(file_path, "r", encoding="utf-8") as file:
                         if not file_name.endswith('.json'):
-                            logging.info(f"File is not json: {file_name}")
                             content = file.read()
                         else:
                             content = json.load(file)
@@ -425,7 +329,7 @@ class SelfHealing:
                             file.write(updated_content)
 
                         updated_files.append(file_path)
-                        print(f"Healed Locators updated in: {file_path} successfully")
+                        logging.info(f"Healed Locators updated in: {file_path} successfully")
 
         return updated_files
 
@@ -476,7 +380,6 @@ class SelfHealing:
                     None, source_attributes[key], target_attributes[key])
                 total_similarity += matcher.ratio()
                 count += 1
-        print(f"Attr similarity is: {total_similarity / count if count > 0 else 0}")
         if bounds_source_attribute: source_attributes.update({'bounds': bounds_source_attribute})
         if bounds_target_attribute: target_attributes.update({'bounds': bounds_target_attribute})
 
@@ -517,13 +420,15 @@ class SelfHealing:
         for candidate in candidate_locators:
             if self.platform == 'ios':
                 if 'x' in candidate['attributes'].keys():
-                    candidate['attributes']['bounds'] = [int(candidate['attributes']['x']), int(candidate['attributes']['y'])], [int(candidate['attributes']['x'])+int(candidate['attributes']['width']), int(candidate['attributes']['y'])+int(candidate['attributes']['height'])]
+                    candidate['attributes']['bounds'] = [int(candidate['attributes']['x']),
+                                                         int(candidate['attributes']['y'])], [
+                        int(candidate['attributes']['x']) + int(candidate['attributes']['width']),
+                        int(candidate['attributes']['y']) + int(candidate['attributes']['height'])]
                     candidate['attributes']['bounds'] = self.format_bounds(candidate['attributes']['bounds'])
                     if 'label' in candidate['attributes'].keys():
                         candidate['attributes']['text'] = candidate['attributes']['label']
 
             if 'bounds' in candidate['attributes'].keys():
-                # handle bounds in iOS
                 candidate_bounds_tuple = self.convert_bounds_str_to_tuple(
                     candidate['attributes']['bounds'])
                 candidate_bounds = self.calculate_relative_bounds(
@@ -544,7 +449,7 @@ class SelfHealing:
                     highest_similarity = overall_similarity
                     best_match = candidate
                 if bounds_similarity >= 0.99:
-                    print("Got Element by Bounds Similarity")
+                    logging.info("Got Element by Bounds Similarity")
                     best_match = candidate
         logging.info(f"Max of Bounds similarity is {max(bounds_all_similarity)} "
                      f"and Max attribute Similarity is: {max(all_similarity_att)} "
@@ -593,7 +498,7 @@ class SelfHealing:
         parts = [part for part in parts if part != '']
         return tuple(map(int, parts))
 
-    def locator_reconstruction(self, application, strategy, element):
+    def locator_reconstruction(self, strategy, element):
         logging.info(f"Reconstructing Locator with strategy: {strategy} and element: {element}")
         logging.info(f"Platform is: {self.platform}")
 
