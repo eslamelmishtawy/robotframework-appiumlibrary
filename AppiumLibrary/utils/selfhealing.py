@@ -311,8 +311,9 @@ class SelfHealing:
             self.update_file_extensions = ['.robot']
         updated_files = []
         current_directory = os.getcwd()
-        for root, _, files in os.walk(current_directory):
-
+        for root, dirs, files in os.walk(current_directory):
+            files = [f for f in files if not f[0] == '.']
+            dirs[:] = [d for d in dirs if not d[0] == '.']
             for file_name in files:
 
                 if any(file_name.endswith(ext) for ext in self.update_file_extensions):
@@ -515,7 +516,7 @@ class SelfHealing:
             return f"id={element['attributes']['resource-id']}"
         elif strategy_key == 'accessibility_id_android' and 'content-desc' in element['attributes']:
             logging.info(f"Returning Locator with Accessibility ID Strategy: {element['attributes']['content-desc']}")
-            return f"accessibility_id={element['attributes']['  content-desc']}"
+            return f"accessibility_id={element['attributes']['content-desc']}"
         elif strategy_key == 'name' and 'name' in element['attributes']:
             logging.info(f"Returning Locator with Name Strategy: {element['attributes']['name']}")
             return f"name={element['attributes']['name']}"
