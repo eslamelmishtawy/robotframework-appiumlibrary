@@ -38,11 +38,12 @@ class SelfHealing:
         self.open_ai_key = OpenAI_key
         self.llm_model = llm_model
         try:
+            logging.info("Connecting to DB")
             self.client = MongoClient(
                 host=host,
                 port=port,
-                # username="admin",
-                # password="adminpassword"
+                username="admin",
+                password="adminpassword"
             )
             logging.info("Connected to MongoDB!")
             self.database = self.client["ROBOT_ELEMENTS"]
@@ -128,8 +129,10 @@ class SelfHealing:
 
             if existing_name:
                 logging.info("Locator with same variable name exists in Database, Updating locator value...")
+                logging.info(f"healed element attribute: {item['attributes']}")
                 self.collection.update_one({"name": locator_variable_name},
                                            {"$set": {"locator": locator,
+                                                     "attributes": item['attributes'],
                                                      "last-time-passed": datetime.now().strftime(
                                                          "%Y-%m-%d %H:%M:%S")}})
             if existing_locator:
@@ -330,6 +333,8 @@ class SelfHealing:
                             file.write(updated_content)
 
                         updated_files.append(file_path)
+                        self.collection.update_one({"name": old_locator_value},
+                                           {"$set": {"name": new_locator_value}})
                         logging.info(f"Healed Locators updated in: {file_path} successfully")
 
         return updated_files

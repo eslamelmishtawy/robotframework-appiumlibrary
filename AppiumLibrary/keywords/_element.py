@@ -662,9 +662,10 @@ class _ElementKeywords(KeywordGroup):
         self._info(f"app_package is: {app_package}")
         if timeout is None:
             timeout = self._timeout_in_secs
-        maxtime = first_time_called + timeout
+        maxtime = float(first_time_called) + float(timeout)
         elements = None
-        locator_variable_name = next((name for name, val in self._bi.get_variables().items() if val == locator), None)
+        self._info(f"Variables: {self._bi.get_variables().items()}")
+        locator_variable_name = next((name for name, val in self._bi.get_variables().items() if val == locator), locator)
         if isstr(locator):
             _locator = locator
             elements = self._element_finder.find(application, _locator, tag)
@@ -682,7 +683,6 @@ class _ElementKeywords(KeywordGroup):
                         if found_healed_element:
                             self.healing_client.add_locator_to_database(found_healed_element, new_healed_locator,
                                                                         locator_variable_name,
-                                                                        application.current_activity,
                                                                         old_locator=locator, app_package=app_package)
                         return found_healed_element
                     else:
@@ -704,7 +704,6 @@ class _ElementKeywords(KeywordGroup):
                             if found_healed_element:
                                 self.healing_client.add_locator_to_database(found_healed_element, new_healed_locator,
                                                                             locator_variable_name,
-                                                                            application.current_activity,
                                                                             old_locator=locator,
                                                                             app_package=app_package)
 
