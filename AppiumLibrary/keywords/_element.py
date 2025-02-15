@@ -7,6 +7,8 @@ from robot.libraries.BuiltIn import BuiltIn
 import ast
 from unicodedata import normalize
 from selenium.webdriver.remote.webelement import WebElement
+from datetime import datetime
+import json 
 
 try:
     basestring  # attempt to evaluate basestring
@@ -23,7 +25,6 @@ class _ElementKeywords(KeywordGroup):
     def __init__(self):
         self._element_finder = ElementFinder()
         self._bi = BuiltIn()
-
     # Public, element lookups
     def clear_text(self, locator):
         """Clears the text field identified by `locator`.
@@ -630,17 +631,26 @@ class _ElementKeywords(KeywordGroup):
             element.set_value(text)
         except Exception as e:
             raise e
-
+    
     def _element_find(self, locator, first_only, required, tag=None):
         application = self._current_application()
         elements = None
+        self._info(self._bi.get_variables().items())
+        variable_name = next((name for name, val in self._bi.get_variables().items() if val == locator), None)
         if isstr(locator):
             _locator = locator
             elements = self._element_finder.find(application, _locator, tag)
             if required and len(elements) == 0:
                 raise ValueError("Element locator '" + locator + "' did not match any elements.")
             if first_only:
-                if len(elements) == 0: return None
+                if len(elements) == 0:
+                    if self.healing_client: 
+                        locator = self.healing_client.apply_self_healing(application, variable_name, locator)
+                        if locator:
+                            return self._element_finder.find(application, locator, tag)[0]
+                    return None
+                if self.healing_client:    
+                    self.healing_client.add_locator_to_database(elements, locator, variable_name, application.current_activity)
                 return elements[0]
         elif isinstance(locator, WebElement):
             if first_only:
